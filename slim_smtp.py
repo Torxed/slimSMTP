@@ -11,15 +11,14 @@ from os.path import isfile
 __date__ = '2013-07-07 14:50 CET'
 __version__ = '0.0.1'
 
-
-core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : False},
-		'SSL' : {'key' : '/dev/null', 'cert' : '/dev/null', 'VERSION' : ssl.PROTOCOL_TLSv1},
+core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
+		'SSL' : {'key' : '/storage/certificates/server.key', 'cert' : '/storage/certificates/server.crt', 'VERSION' : ssl.PROTOCOL_TLSv1|ssl.PROTOCOL_SSLv3},
 		'domain' : 'example.se',
 		'supports' : ['example.se', 'SIZE 10240000', 'STARTTLS', 'AUTH PLAIN', 'ENHANCEDSTATUSCODES', '8BITMIME', 'DSN'],
 		'users' : {'test' : {'password' : 'passWord123'}},
-		'relay' : ('relay.host.se', 25, True)},
+		'relay' : ('smtp.t3.se', 25, False),
 		'storages' : {'test@example.se' : '/storage/mail/test',
-					'default' : '/storage/mail/unsorted'}
+					'default' : '/storage/mail/unsorted'}}
 
 def getDomainInfo(domain):
 	if '@' in domain:
@@ -32,7 +31,7 @@ def getDomainInfo(domain):
 
 	return host, domain
 
-def local_mail(_from, to, message):
+def local_mail(_from, _to, message):
 	if _to in core['storages']:
 		path = core['storages'][_to] + '/'
 	else:
@@ -91,7 +90,10 @@ class _clienthandle(Thread):
 		data_mode = False
 		while self.disconnect == False:
 			try:
-				data = self.socket.recv(8192)
+				if self.ssl:
+					data = self.socket.read()
+				else:
+					data = self.socket.recv(8192)
 			except:
 				data = None
 
@@ -101,8 +103,16 @@ class _clienthandle(Thread):
 
 			## To enforce SSL:
 			# 530 5.7.0 Must issue a STARTTLS command first
-			if core['_socket']['SSL']:
-				self.socket = ssl.wrap_socket(self.socket, keyfile=core['SSL']['key'], certfile=core['SSL']['cert'], server_side=True, ssl_version=core['SSL']['VERSION'])
+			if core['_socket']['SSL'] and self.ssl == False and (data[:4] != 'EHLO' and data != 'STARTTLS'):
+				if not 'STARTTLS' in data:
+					self.socket.send('530 5.7.0 Must issue a STARTTLS command first\r\n')
+					break
+				else:
+					self.socket.send('220 2.0.0 Ready to start TLS\r\n')
+					self.socket = ssl.wrap_socket(self.socket, keyfile=core['SSL']['key'], certfile=core['SSL']['cert'], server_side=True, do_handshake_on_connect=True, suppress_ragged_eofs=False, cert_reqs=ssl.CERT_NONE, ca_certs=None, ssl_version=core['SSL']['VERSION'])
+					self.ssl = True
+					print ' | Converted into a SSL socket!'
+					continue
 
 			response = ''
 			recieved_data += data
@@ -175,6 +185,7 @@ class _clienthandle(Thread):
 						# ...
 				elif not self.session and command_to_parse[:4] == 'MAIL':
 					self._from = self.email_catcher.findall(command_to_parse)[0]
+					print 'Unauthed sending to: "' + getDomainInfo(self._to)[1] + '"'
 					if getDomainInfo(self._to)[1] != core['domain']:
 						response += '504 need to authenticate first\r\n'
 					else:
