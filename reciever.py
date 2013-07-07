@@ -16,8 +16,10 @@ core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : False},
 		'SSL' : {'key' : '/dev/null', 'cert' : '/dev/null', 'VERSION' : ssl.PROTOCOL_TLSv1},
 		'domain' : 'example.se',
 		'supports' : ['example.se', 'SIZE 10240000', 'STARTTLS', 'AUTH PLAIN', 'ENHANCEDSTATUSCODES', '8BITMIME', 'DSN'],
-		'users' : {'test' : {'password' : 'passWord123', 'maildir' : '/storage/mail/test/'}},
-		'relay' : ('relay.host.se', 25, True)}
+		'users' : {'test' : {'password' : 'passWord123'}},
+		'relay' : ('relay.host.se', 25, True)},
+		'storages' : {'test@example.se' : '/storage/mail/test',
+					'default' : '/storage/mail/unsorted'}
 
 def getDomainInfo(domain):
 	if '@' in domain:
@@ -31,8 +33,14 @@ def getDomainInfo(domain):
 	return host, domain
 
 def local_mail(_from, to, message):
-	with open(str(_from) + '-' + str(time()) + '.mail', 'wb') as fh:
+	if _to in core['storages']:
+		path = core['storages'][_to] + '/'
+	else:
+		path = core['storages']['default'] + '/'
+
+	with open(path + _from + '-' + str(time()) + '.mail', 'wb') as fh:
 		fh.write(message)
+
 	return True
 
 def external_mail(_from, to, message):
@@ -165,7 +173,13 @@ class _clienthandle(Thread):
 						# response += '335 ' + b64encode('Password:') + '\r\n'
 						# <- b64decode(password)
 						# ...
-
+				elif not self.session and command_to_parse[:4] == 'MAIL':
+					self._from = self.email_catcher.findall(command_to_parse)[0]
+					if getDomainInfo(self._to)[1] != core['domain']:
+						response += '504 need to authenticate first\r\n'
+					else:
+						self.session = '#incomming_externally'
+						response += '250 2.1.0 Ok\r\n'
 				else:
 					response += '504 need to authenticate first\r\n'
 					break
