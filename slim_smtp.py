@@ -142,26 +142,35 @@ class _clienthandle(Thread):
 							response += '250 ' + support + '\r\n'
 						else:
 							response += '250-' + support + '\r\n'
-				elif self.session:
-					## TODO: Don't assume that the sender actually send a proper e-amil.
-					## Also, this list might contain [] because of it.
-					if command_to_parse[:4] == 'MAIL':
-						self._from = self.email_catcher.findall(command_to_parse)[0]
-						response += '250 2.1.0 Ok\r\n'
-					elif command_to_parse[:4] == 'RCPT':
-						self._to = self.email_catcher.findall(command_to_parse)[0]
-						if getDomainInfo(self._to)[1] != core['domain']:
+
+				## TODO: Don't assume that the sender actually send a proper e-amil.
+				## Also, this list might contain [] because of it.
+				elif command_to_parse[:4] == 'MAIL':
+					self._from = self.email_catcher.findall(command_to_parse)[0]
+					response += '250 2.1.0 Ok\r\n'
+
+				elif command_to_parse[:4] == 'RCPT':
+					self._to = self.email_catcher.findall(command_to_parse)[0]
+					if getDomainInfo(self._to)[1] != core['domain']:
+						if not self.session:
+							response += '504 need to authenticate first\r\n'
+							break
+						else:
 							self.external = True
+					else:
+						if not self.session:
+							self.session = '#incomming_externally'
+					response += '250 2.1.5 Ok\r\n'
 
-						response += '250 2.1.5 Ok\r\n'
+				elif command_to_parse == 'QUIT':
+					response += '221 2.0.0 Bye\r\n'
+					self.disconnect = True
+					break
 
-					elif command_to_parse[:4] == 'DATA':
+				elif command_to_parse[:4] == 'DATA' and self.session:
 						data_mode = True
 						response += '354 End data with <CR><LF>.<CR><LF>\r\n'
-					elif command_to_parse == 'QUIT':
-						response += '221 2.0.0 Bye\r\n'
-						self.disconnect = True
-						break
+
 				elif not self.session and command_to_parse[:4] == 'AUTH':
 					trash, mode = command_to_parse.split(' ',1)
 					if mode[:5] == 'PLAIN':
@@ -183,14 +192,6 @@ class _clienthandle(Thread):
 						# response += '335 ' + b64encode('Password:') + '\r\n'
 						# <- b64decode(password)
 						# ...
-				elif not self.session and command_to_parse[:4] == 'MAIL':
-					self._from = self.email_catcher.findall(command_to_parse)[0]
-					print 'Unauthed sending to: "' + getDomainInfo(self._to)[1] + '"'
-					if getDomainInfo(self._to)[1] != core['domain']:
-						response += '504 need to authenticate first\r\n'
-					else:
-						self.session = '#incomming_externally'
-						response += '250 2.1.0 Ok\r\n'
 				else:
 					response += '504 need to authenticate first\r\n'
 					break
