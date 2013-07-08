@@ -6,8 +6,8 @@ A Simple and Slim SMTP server aiming for a minimalistic and simple design.
 
 Key features
 ============
+* 1 executable (Minimal software requirements)
 * Simple to configure
-* Minimal software requirements
 * Less code for a more secure overview
 * Easy to administrate and se up
 
@@ -19,7 +19,7 @@ But for now this is a stable alpha release ready for testing.
 
 Here's a few things that's ontop of the list before a release is made:
 
- * Security sanity check on the code
- * Compress the code, remove unesscessary code and functionize blob-code
- * Restructure the code to be more logical
- * Test and verification by a non-developer
+ * [Security sanity check on the code](https://github.com/Torxed/SlimSMTP/issues/3)
+ * [Error handling](https://github.com/Torxed/SlimSMTP/issues/2) (missing files, folders, maliscious code blocks)
+ * ```Restructure the code to be more logical```
+ * [Test and verification by a non-developer](https://github.com/Torxed/SlimSMTP/issues/5)
