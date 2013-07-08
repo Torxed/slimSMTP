@@ -8,8 +8,8 @@ from time import sleep, strftime, localtime, time
 from os import _exit
 from os.path import isfile, isdir
 
-__date__ = '2013-07-08 15:41 CET'
-__version__ = '0.0.2'
+__date__ = '2013-07-08 16:29 CET'
+__version__ = '0.0.3'
 
 core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
 		'SSL' : {'key' : '/storage/certificates/server.key', 'cert' : '/storage/certificates/server.crt', 'VERSION' : ssl.PROTOCOL_TLSv1|ssl.PROTOCOL_SSLv3},
@@ -94,6 +94,34 @@ class parser():
 
 		self.data_mode = False
 
+	def reset(self):
+		self.authed_session = None
+		self.From = None
+		self.to = None
+		self.data = ''
+		self.external = False
+		self.ssl = False
+
+		## We don't reset the data_mode,
+		## mainly because reset is called inside the data loop.
+
+	def deliver(self):
+		print ' | Sending mail: ' + self.From + '(' + self.authed_session + ') -> ' + self.to
+		## == Just to make sure, as long as we're authenticated and the authenticated "user"
+		## == doesn't begin with an "#" (reserved for system-design-users), we'll send externally.
+		if self.external and self.authed_session and self.authed_session[0] != '#':
+			if external_mail(self.From, self.to, self.data + '\r\n.\r\n'):
+				self.reset()
+				return '250 2.0.0 Ok: queued as ' + b64encode(str(time())) + '\r\n'
+		elif self.external and not self.authed_session:
+			return '504 need to authenticate first\r\n'
+		elif not self.external:
+			local_mail(self.From, self.to, self.data)
+			self.reset()
+			return '250 2.0.0 Ok: Delivered\r\n'
+		
+		return '550 Could not deliver the e-mail\r\n'
+
 	def parse(self, data):
 		response = ''
 
@@ -101,16 +129,7 @@ class parser():
 			if '\r\n.\r\n' in data:
 				self.data, data = data.rsplit('\r\n.\r\n', 1)
 				self.data_mode = False
-
-				print ' | Sending mail: ' + self.From + '(' + self.authed_session + ') -> ' + self.to
-				if self.external:
-					if external_mail(self.From, self.to, self.data + '\r\n.\r\n'):
-						response += '250 2.0.0 Ok: queued as C8C7E2ED4D9C\r\n'
-					else:
-						response += '550 Could not deliver the e-mail externally (rejected)\r\n'
-				else:
-					local_mail(self.From, self.to, self.data)
-					response += '250 2.0.0 Ok: queued as C8C7E2ED4D9C\r\n'
+				response += self.deliver()
 			else:
 				self.data += data
 
@@ -145,11 +164,17 @@ class parser():
 				## == safe to parse whenever, both authorized and unauthorized.
 				## ==
 				if command_to_parse[:4] == 'EHLO':
-					for support in core['supports']:
-						if core['supports'][-1] == support:
-							response += '250 ' + support + '\r\n'
-						else:
-							response += '250-' + support + '\r\n'
+					## == Upon EHLO, we reply with "250 <support>\r\n" until
+					## == The last MODE we support, the last MODE is replied with "250 "
+					## == and doesnt include "-", as such:
+					## ==     250-<domain<\r\n
+					## ==     250-<mode>\r\n
+					## ==     250-<mode>\r\n
+					## ==     250 <last mode>\r\n
+					## == so we have to treat that last supported mode a bit different.
+					for index in range(0, len(core['supports'])-2):
+							response += '250-' + core['supports'][index] + '\r\n'
+					response += '250 ' + core['supports'][-1] + '\r\n'
 
 				elif command_to_parse[:4] == 'MAIL':
 					## TODO: Don't assume that the sender actually send a proper e-amil.
@@ -162,11 +187,15 @@ class parser():
 					## Also, this list might contain [] because of it.
 					self.to = self.email_catcher.findall(command_to_parse)[0]
 					if getDomainInfo(self.to)[1] != core['domain']:
+						## If the sender is trying to relay anything except our own domain
+						## we'll tell the user to authenticate first.
 						if not self.authed_session:
 							response += '504 need to authenticate first\r\n'
 							break
 						else:
-							self.external = True
+							## But if the user is authenticated, and it's an external e-mail.
+							## we'll notify the parser of such.
+							self.parser.external = True
 					else:
 						if not self.authed_session:
 							self.authed_session = '#incomming_externally'
@@ -215,14 +244,6 @@ class parser():
 					break
 
 		return response, data
-
-	def deliver(self):
-		if self.external and self.authed_session:
-			pass
-		elif not self.external:
-			pass
-		else:
-			pass #Please authenticate first
 
 class _clienthandle(Thread):
 	def __init__(self, sock, addr):
