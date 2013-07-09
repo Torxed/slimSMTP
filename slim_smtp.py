@@ -8,8 +8,8 @@ from time import sleep, strftime, localtime, time
 from os import _exit, remove, getpid
 from os.path import isfile, isdir
 
-__date__ = '2013-07-10 00:41 CET'
-__version__ = '0.0.6'
+__date__ = '2013-07-10 01:33 CET'
+__version__ = '0.0.7'
 pidfile = '/var/run/slim_smtp.pid'
 
 core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
@@ -48,14 +48,10 @@ def sanity_startup_check():
 		raise SanityCheck('Certificate error: Missing Key')
 	if not isfile(core['SSL']['cert']):
 		raise SanityCheck('Certificate error: Missing Cert')
-	#pidfile = './praktikanten.pid'
 
 	if isfile(pidfile):
-		#log('Dreamhack Praktikanten is already running!', 'Core')
-		fh = open(pidfile)
-		thepid = fh.read()
-		fh.close()
-		thepid = int(thepid)
+		with open(pidfile) as fh:
+			thepid = int(fh.read())
 		if pid_exists(thepid):
 			exit(1)
 		else:
@@ -228,9 +224,6 @@ class parser():
 			## in order of their arrival and respond to them accordingly.
 			while '\r\n' in data:
 				command_to_parse, data = data.split('\r\n',1)
-				## Debug:
-				#print '<<',[command_to_parse]
-
 				## ==
 				## == The following commands are to be considered
 				## == safe to parse whenever, both authorized and unauthorized.
@@ -355,8 +348,6 @@ class _clienthandle(Thread):
 			response, recieved_data = self.parser.parse(recieved_data)
 
 			if len(response) > 0:
-				## == Debug:
-				##print '>>',[response]
 				self.send(response)
 
 				## == Disconnect codes:
@@ -416,17 +407,4 @@ f.close()
 s = _socket()
 signal.signal(signal.SIGINT, signal_handler)
 while 1:
-	try:
-		sleep(1)
-	except:
-		break
-
-remove(pidfile)
-
-#for client in core['clients']:
-#	try:
-#		core['clients'][client]['socket'].close()
-#	except:
-#		pass
-#s.close()
-#_exit(1)
+	sleep(1)
