@@ -20,6 +20,6 @@ But for now this is a stable alpha release ready for testing.
 Here's a few things that's ontop of the list before a release is made:
 
  * [Security sanity check on the code](https://github.com/Torxed/SlimSMTP/issues/3)
- * [Error handling](https://github.com/Torxed/SlimSMTP/issues/2) (missing files, folders, maliscious code blocks)
+ * ```Error handling```
  * ```Restructure the code to be more logical```
  * [Test and verification by a non-developer](https://github.com/Torxed/SlimSMTP/issues/5)
