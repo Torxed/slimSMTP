@@ -8,8 +8,8 @@ from time import sleep, strftime, localtime, time
 from os import _exit
 from os.path import isfile, isdir
 
-__date__ = '2013-07-09 16:11 CET'
-__version__ = '0.0.5'
+__date__ = '2013-07-09 16:15 CET'
+__version__ = '0.0.5p1'
 
 core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
 		'SSL' : {'key' : '/storage/certificates/server.key', 'cert' : '/storage/certificates/server.crt', 'VERSION' : ssl.PROTOCOL_TLSv1|ssl.PROTOCOL_SSLv3},
@@ -139,7 +139,6 @@ class parser():
 				print ' ! No such user:',[username]
 				# 535 5.7.1 authentication failed\r\n
 				response += '535 5.7.8 Error: authentication failed\r\n'
-			break
 			del password
 		elif mode[:5] == 'LOGIN':
 			response += '504 Authentication mechanism not supported.\r\n'
@@ -158,7 +157,7 @@ class parser():
 				response += response_add
 			else:
 				response += '504 Authentication mechanism not supported.\r\n'
-
+			del params
 		return response
 
 	def parse(self, data):
