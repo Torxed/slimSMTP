@@ -8,8 +8,8 @@ from time import sleep, strftime, localtime, time
 from os import _exit
 from os.path import isfile, isdir
 
-__date__ = '2013-07-08 16:29 CET'
-__version__ = '0.0.3'
+__date__ = '2013-07-09 16:04 CET'
+__version__ = '0.0.4'
 
 core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
 		'SSL' : {'key' : '/storage/certificates/server.key', 'cert' : '/storage/certificates/server.crt', 'VERSION' : ssl.PROTOCOL_TLSv1|ssl.PROTOCOL_SSLv3},
@@ -19,6 +19,7 @@ core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
 		'relay' : ('smtp.relay.se', 25, False),
 		'storages' : {'test@example.se' : '/storage/mail/test',
 					'default' : '/storage/mail/unsorted'}}
+
 
 class SanityCheck(Exception):
 	pass
@@ -122,6 +123,40 @@ class parser():
 		
 		return '550 Could not deliver the e-mail\r\n'
 
+	def login(self, data):
+		trash, mode = data.split(' ',1)
+		if mode[:5] == 'PLAIN':
+			mode, password = mode.split(' ',1)
+			authid, username, password = b64decode(password).split('\x00',2)
+			if username in core['users'] and core['users'][username]['password'] == password:
+				self.authed_session = username
+				response += '235 2.7.0 Authentication successful\r\n'
+			else:
+				print ' ! No such user:',[username]
+				# 535 5.7.1 authentication failed\r\n
+				response += '535 5.7.8 Error: authentication failed\r\n'
+			break
+			del password
+		elif mode[:5] == 'LOGIN':
+			response += '504 Authentication mechanism not supported.\r\n'
+			# response += '335 ' + b64encode('Username:') + '\r\n'
+			# <- b64decode(username)
+			# response += '335 ' + b64encode('Password:') + '\r\n'
+			# <- b64decode(password)
+			# ...
+		else:
+			params = None
+			if ' ' in mode:
+				mode, params = mode.split(' ',1)
+			if isfile(mode+'.py'):
+				handle = __import__(mode)
+				self.authed_session, response_add = handle.login(params)
+				response += response_add
+			else:
+				response += '504 Authentication mechanism not supported.\r\n'
+
+		return response
+
 	def parse(self, data):
 		response = ''
 
@@ -219,26 +254,7 @@ class parser():
 				## == will not be allowed.
 				## ==
 				elif not self.authed_session and command_to_parse[:4] == 'AUTH':
-						trash, mode = command_to_parse.split(' ',1)
-						if mode[:5] == 'PLAIN':
-							mode, password = mode.split(' ',1)
-							authid, username, password = b64decode(password).split('\x00',2)
-							if username in core['users'] and core['users'][username]['password'] == password:
-								self.authed_session = username
-								response += '235 2.7.0 Authentication successful\r\n'
-							else:
-								print ' ! No such user:',[username]
-								# 535 5.7.1 authentication failed\r\n
-								response += '535 5.7.8 Error: authentication failed\r\n'
-							break
-							del password
-						elif mode[:5] == 'LOGIN':
-							response += '504 Authentication mechanism not supported.\r\n'
-							# response += '335 ' + b64encode('Username:') + '\r\n'
-							# <- b64decode(username)
-							# response += '335 ' + b64encode('Password:') + '\r\n'
-							# <- b64decode(password)
-							# ...
+					response += self.login(command_to_parse)
 				else:
 					response += '504 need to authenticate first\r\n'
 					break
@@ -311,6 +327,8 @@ class _clienthandle(Thread):
 				if '504' in response:
 					break
 				elif '221' in response:
+					break
+				elif self.parser.disconnect:
 					break
 			sleep(0.025)
 				
