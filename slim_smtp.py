@@ -11,15 +11,22 @@ from os.path import isfile, isdir
 __date__ = '2013-07-09 16:04 CET'
 __version__ = '0.0.4'
 
+#core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
+#		'SSL' : {'key' : '/storage/certificates/server.key', 'cert' : '/storage/certificates/server.crt', 'VERSION' : ssl.PROTOCOL_TLSv1|ssl.PROTOCOL_SSLv3},
+#		'domain' : 'example.se',
+#		'supports' : ['example.se', 'SIZE 10240000', 'STARTTLS', 'AUTH PLAIN', 'ENHANCEDSTATUSCODES', '8BITMIME', 'DSN'],
+#		'users' : {'test' : {'password' : 'passWord123'}},
+#		'relay' : ('smtp.relay.se', 25, False),
+#		'storages' : {'test@example.se' : '/storage/mail/test',
+#					'default' : '/storage/mail/unsorted'}}
 core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
-		'SSL' : {'key' : '/storage/certificates/server.key', 'cert' : '/storage/certificates/server.crt', 'VERSION' : ssl.PROTOCOL_TLSv1|ssl.PROTOCOL_SSLv3},
-		'domain' : 'example.se',
-		'supports' : ['example.se', 'SIZE 10240000', 'STARTTLS', 'AUTH PLAIN', 'ENHANCEDSTATUSCODES', '8BITMIME', 'DSN'],
-		'users' : {'test' : {'password' : 'passWord123'}},
-		'relay' : ('smtp.relay.se', 25, False),
-		'storages' : {'test@example.se' : '/storage/mail/test',
+		'SSL' : {'key' : '/storage/certificates/mail/server.key', 'cert' : '/storage/certificates/mail/server.crt', 'VERSION' : ssl.PROTOCOL_TLSv1|ssl.PROTOCOL_SSLv3},
+		'domain' : 'hvornum.se',
+		'supports' : ['hvornum.se', 'SIZE 10240000', 'STARTTLS', 'AUTH PLAIN', 'ENHANCEDSTATUSCODES', '8BITMIME', 'DSN'],
+		'users' : {'anton' : {'password' : 'jotkaell'}},
+		'relay' : ('smtp.t3.se', 25, False),
+		'storages' : {'anton@hvornum.se' : '/storage/mail/anton',
 					'default' : '/storage/mail/unsorted'}}
-
 
 class SanityCheck(Exception):
 	pass
@@ -59,7 +66,6 @@ def local_mail(_from, _to, message):
 	return True
 
 def external_mail(_from, to, message):
-	Fail = False
 	server = smtplib.SMTP(core['relay'][0], core['relay'][1])
 	server.ehlo()
 	if core['relay'][2]:
@@ -67,21 +73,27 @@ def external_mail(_from, to, message):
 			server.starttls()
 		except:
 			print ' ! The relay-server doesn\'t support TLS/SSL!'
+			server.quit()
 			return False
 	if len(core['relay']) >= 5:
-		server.login(core['relay'][3], core['relay'][4])
-
+		try:
+			server.login(core['relay'][3], core['relay'][4])
+		except:
+			print ' ! Invalid credentials towards relay server'
+			server.quit()
+			return False
 	try:
 		server.sendmail(_from, to, message)
 	except smtplib.SMTPRecipientsRefused:
 		print ' ! Could not relay the mail, Recipient Refused!'
-		Fail = True
+		server.quit()
+		return False
 	except:
-		Fail = True
+		server.quit()
+		return False
 
 	server.quit()
-
-	return Fail
+	return True
 
 class parser():
 	def __init__(self):
