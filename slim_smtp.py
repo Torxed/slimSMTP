@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: iso-8859-15 -*-
-import asyncore, re, smtplib, ssl
+import asyncore, re, smtplib, ssl, signal
 from base64 import b64encode, b64decode
 from threading import *
 from socket import *
@@ -34,6 +34,14 @@ def pid_exists(pid):
 		return e.errno == errno.EPERM
 	else:
 		return True
+
+def signal_handler(signal, frame):
+	try:
+		s.close()
+	except:
+		pass
+	remove(pidfile)
+	_exit(1)
 
 def sanity_startup_check():
 	if not isfile(core['SSL']['key']):
@@ -406,6 +414,7 @@ f.write(str(pid))
 f.close()
 
 s = _socket()
+signal.signal(signal.SIGINT, signal_handler)
 while 1:
 	try:
 		sleep(1)
