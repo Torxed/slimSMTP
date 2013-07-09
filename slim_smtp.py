@@ -8,24 +8,16 @@ from time import sleep, strftime, localtime, time
 from os import _exit
 from os.path import isfile, isdir
 
-__date__ = '2013-07-09 16:04 CET'
-__version__ = '0.0.4'
+__date__ = '2013-07-09 16:11 CET'
+__version__ = '0.0.5'
 
-#core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
-#		'SSL' : {'key' : '/storage/certificates/server.key', 'cert' : '/storage/certificates/server.crt', 'VERSION' : ssl.PROTOCOL_TLSv1|ssl.PROTOCOL_SSLv3},
-#		'domain' : 'example.se',
-#		'supports' : ['example.se', 'SIZE 10240000', 'STARTTLS', 'AUTH PLAIN', 'ENHANCEDSTATUSCODES', '8BITMIME', 'DSN'],
-#		'users' : {'test' : {'password' : 'passWord123'}},
-#		'relay' : ('smtp.relay.se', 25, False),
-#		'storages' : {'test@example.se' : '/storage/mail/test',
-#					'default' : '/storage/mail/unsorted'}}
 core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
-		'SSL' : {'key' : '/storage/certificates/mail/server.key', 'cert' : '/storage/certificates/mail/server.crt', 'VERSION' : ssl.PROTOCOL_TLSv1|ssl.PROTOCOL_SSLv3},
-		'domain' : 'hvornum.se',
-		'supports' : ['hvornum.se', 'SIZE 10240000', 'STARTTLS', 'AUTH PLAIN', 'ENHANCEDSTATUSCODES', '8BITMIME', 'DSN'],
-		'users' : {'anton' : {'password' : 'jotkaell'}},
-		'relay' : ('smtp.t3.se', 25, False),
-		'storages' : {'anton@hvornum.se' : '/storage/mail/anton',
+		'SSL' : {'key' : '/storage/certificates/server.key', 'cert' : '/storage/certificates/server.crt', 'VERSION' : ssl.PROTOCOL_TLSv1|ssl.PROTOCOL_SSLv3},
+		'domain' : 'example.se',
+		'supports' : ['example.se', 'SIZE 10240000', 'STARTTLS', 'AUTH PLAIN', 'ENHANCEDSTATUSCODES', '8BITMIME', 'DSN'],
+		'users' : {'test' : {'password' : 'passWord123'}},
+		'relay' : ('smtp.relay.se', 25, False),
+		'storages' : {'test@example.se' : '/storage/mail/test',
 					'default' : '/storage/mail/unsorted'}}
 
 class SanityCheck(Exception):
