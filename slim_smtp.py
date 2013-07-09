@@ -8,8 +8,8 @@ from time import sleep, strftime, localtime, time
 from os import _exit
 from os.path import isfile, isdir
 
-__date__ = '2013-07-09 16:15 CET'
-__version__ = '0.0.5p1'
+__date__ = '2013-07-10 00:41 CET'
+__version__ = '0.0.6'
 
 core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
 		'SSL' : {'key' : '/storage/certificates/server.key', 'cert' : '/storage/certificates/server.crt', 'VERSION' : ssl.PROTOCOL_TLSv1|ssl.PROTOCOL_SSLv3},
@@ -19,6 +19,7 @@ core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
 		'relay' : ('smtp.relay.se', 25, False),
 		'storages' : {'test@example.se' : '/storage/mail/test',
 					'default' : '/storage/mail/unsorted'}}
+
 
 class SanityCheck(Exception):
 	pass
@@ -261,6 +262,7 @@ class parser():
 				else:
 					response += '504 need to authenticate first\r\n'
 					break
+				sleep(0.025)
 
 		return response, data
 
@@ -368,6 +370,7 @@ class _socket(Thread, socket):
 
 			ns.send('220 ' + core['domain'] + ' ESMTP SlimSMTP\r\n')
 			ch = _clienthandle(ns, na)
+			sleep(0.025)
 
 
 sanity_startup_check()
