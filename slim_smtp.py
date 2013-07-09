@@ -5,11 +5,12 @@ from base64 import b64encode, b64decode
 from threading import *
 from socket import *
 from time import sleep, strftime, localtime, time
-from os import _exit
+from os import _exit, remove, getpid
 from os.path import isfile, isdir
 
 __date__ = '2013-07-10 00:41 CET'
 __version__ = '0.0.6'
+pidfile = '/var/run/slim_smtp.pid'
 
 core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
 		'SSL' : {'key' : '/storage/certificates/server.key', 'cert' : '/storage/certificates/server.crt', 'VERSION' : ssl.PROTOCOL_TLSv1|ssl.PROTOCOL_SSLv3},
@@ -20,15 +21,39 @@ core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
 		'storages' : {'test@example.se' : '/storage/mail/test',
 					'default' : '/storage/mail/unsorted'}}
 
-
 class SanityCheck(Exception):
 	pass
+
+def pid_exists(pid):
+	"""Check whether pid exists in the current process table."""
+	if pid < 0:
+		return False
+	try:
+		os.kill(pid, 0)
+	except OSError, e:
+		return e.errno == errno.EPERM
+	else:
+		return True
 
 def sanity_startup_check():
 	if not isfile(core['SSL']['key']):
 		raise SanityCheck('Certificate error: Missing Key')
 	if not isfile(core['SSL']['cert']):
 		raise SanityCheck('Certificate error: Missing Cert')
+	#pidfile = './praktikanten.pid'
+
+	if isfile(pidfile):
+		#log('Dreamhack Praktikanten is already running!', 'Core')
+		fh = open(pidfile)
+		thepid = fh.read()
+		fh.close()
+		thepid = int(thepid)
+		if pid_exists(thepid):
+			exit(1)
+		else:
+			print 'Removed the PID file, dead session!'
+			remove(pidfile)
+
 	for storages in core['storages']:
 		if not isdir(core['storages'][storages]):
 			print ' ! Warning - Missing storage: ' + core['storages'][storages]
@@ -375,12 +400,19 @@ class _socket(Thread, socket):
 
 sanity_startup_check()
 
+pid = getpid()
+f = open(pidfile, 'wb')
+f.write(str(pid))
+f.close()
+
 s = _socket()
 while 1:
 	try:
 		sleep(1)
 	except:
 		break
+
+remove(pidfile)
 
 #for client in core['clients']:
 #	try:
