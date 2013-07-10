@@ -8,8 +8,8 @@ from time import sleep, strftime, localtime, time
 from os import _exit, remove, getpid
 from os.path import isfile, isdir
 
-__date__ = '2013-07-10 01:33 CET'
-__version__ = '0.0.7'
+__date__ = '2013-07-10 09:26 CET'
+__version__ = '0.0.7p1'
 pidfile = '/var/run/slim_smtp.pid'
 
 core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
@@ -128,6 +128,7 @@ class parser():
 		self.email_catcher = re.compile(r'[\w\-][\w\-\.]+@[\w\-][\w\-\.]+[a-zA-Z]{1,4}')
 
 		self.data_mode = False
+		self.disconnect = False
 
 	def reset(self):
 		self.authed_session = None
