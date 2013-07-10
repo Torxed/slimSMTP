@@ -8,7 +8,7 @@ Key features
 ============
 * 1 executable (Minimal software requirements)
 * Simple to configure
-* Less code `(~281 rows)` for a more secure overview
+* Less code `(~289 rows)` for a more secure overview
 * Easy to administrate and set up
 
 
