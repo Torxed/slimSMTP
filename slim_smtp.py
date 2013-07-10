@@ -8,8 +8,8 @@ from time import sleep, strftime, localtime, time
 from os import _exit, remove, getpid
 from os.path import isfile, isdir
 
-__date__ = '2013-07-10 09:26 CET'
-__version__ = '0.0.7p1'
+__date__ = '2013-07-10 09:46 CET'
+__version__ = '0.0.7p2'
 pidfile = '/var/run/slim_smtp.pid'
 
 core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
@@ -17,7 +17,7 @@ core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
 		'domain' : 'example.se',
 		'supports' : ['example.se', 'SIZE 10240000', 'STARTTLS', 'AUTH PLAIN', 'ENHANCEDSTATUSCODES', '8BITMIME', 'DSN'],
 		'users' : {'test' : {'password' : 'passWord123'}},
-		'relay' : ('smtp.relay.se', 25, False),
+		'relay' : ('smtp.t3.se', 25, False),
 		'storages' : {'test@example.se' : '/storage/mail/test',
 					'default' : '/storage/mail/unsorted'}}
 
@@ -110,7 +110,9 @@ def external_mail(_from, to, message):
 		print ' ! Could not relay the mail, Recipient Refused!'
 		server.quit()
 		return False
-	except:
+	except Exception, e:
+		if type(e) == tuple and len(e) >= 3:
+			print ' !- ' + str(e[0]) + ' ' + str(e[1])
 		server.quit()
 		return False
 
@@ -160,6 +162,7 @@ class parser():
 
 	def login(self, data):
 		trash, mode = data.split(' ',1)
+		response = ''
 		if mode[:5] == 'PLAIN':
 			mode, password = mode.split(' ',1)
 			authid, username, password = b64decode(password).split('\x00',2)
@@ -261,7 +264,7 @@ class parser():
 						else:
 							## But if the user is authenticated, and it's an external e-mail.
 							## we'll notify the parser of such.
-							self.parser.external = True
+							self.external = True
 					else:
 						if not self.authed_session:
 							self.authed_session = '#incomming_externally'
@@ -386,7 +389,10 @@ class _socket(Thread, socket):
 
 	def run(self):
 		while 1:
-			ns, na = self.accept()
+			try:
+				ns, na = self.accept()
+			except:
+				break
 
 			if not 'clients' in core:
 				core['clients'] = {}
@@ -396,7 +402,7 @@ class _socket(Thread, socket):
 			ns.send('220 ' + core['domain'] + ' ESMTP SlimSMTP\r\n')
 			ch = _clienthandle(ns, na)
 			sleep(0.025)
-
+		self.close()
 
 sanity_startup_check()
 
