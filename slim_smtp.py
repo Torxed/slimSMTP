@@ -1,25 +1,27 @@
 #!/usr/bin/python
 # -*- coding: iso-8859-15 -*-
-import asyncore, re, smtplib, ssl, signal
+import asyncore, re, smtplib, ssl, signal, pwd, grp, pam #psycopg2
 from base64 import b64encode, b64decode
 from threading import *
 from socket import *
 from time import sleep, strftime, localtime, time
-from os import _exit, remove, getpid
-from os.path import isfile, isdir
+from os import _exit, remove, getpid, kill, chown
+from os.path import isfile, isdir, abspath
 
 __date__ = '2013-07-10 09:46 CET'
 __version__ = '0.0.7p2'
 pidfile = '/var/run/slim_smtp.pid'
+DOMAIN = 'example.com'
 
-core = {'_socket' : {'listen' : '', 'port' : 25, 'SSL' : True},
-		'SSL' : {'key' : '/storage/certificates/server.key', 'cert' : '/storage/certificates/server.crt', 'VERSION' : ssl.PROTOCOL_TLSv1|ssl.PROTOCOL_SSLv3},
-		'domain' : 'example.se',
-		'supports' : ['example.se', 'SIZE 10240000', 'STARTTLS', 'AUTH PLAIN', 'ENHANCEDSTATUSCODES', '8BITMIME', 'DSN'],
-		'users' : {'test' : {'password' : 'passWord123'}},
-		'relay' : ('smtp.t3.se', 25, False),
-		'storages' : {'test@example.se' : '/storage/mail/test',
-					'default' : '/storage/mail/unsorted'}}
+core = {'_socket' : {'listen' : '', 'ports' : [25, 587]},
+		'SSL' : {'enabled' : True, 'key' : '/etc/ssl/hvornum.se.key_nopass', 'cert' : '/etc/ssl/hvornum.se.crt', 'VERSION' : ssl.PROTOCOL_TLSv1},#|ssl.PROTOCOL_SSLv3},
+		'domain' : DOMAIN,
+		'supports' : [DOMAIN, 'SIZE 10240000', 'STARTTLS', 'AUTH PLAIN', 'ENHANCEDSTATUSCODES', '8BITMIME', 'DSN'],
+		'users' : {b'testuser' : {'password' : '1234'}, '@POSTGRESQL' : False, '@PAM' : pam.pam()},
+		'relay' : {'active' : False, 'host' : 'smtp.t3.se', 'port' : 25, 'TLS' : False},
+		'external' : {'enforce_tls' : True},
+		'storages' : {'anton@'+DOMAIN : '/home/anton/Maildir/',
+					'default' : '/home/anton/Maildir/'}}
 
 class SanityCheck(Exception):
 	pass
@@ -29,8 +31,10 @@ def pid_exists(pid):
 	if pid < 0:
 		return False
 	try:
-		os.kill(pid, 0)
-	except OSError, e:
+		kill(pid, 0)
+	except ProcessLookupError as e:
+		return False
+	except OSError as e:
 		return e.errno == errno.EPERM
 	else:
 		return True
@@ -44,23 +48,27 @@ def signal_handler(signal, frame):
 	_exit(1)
 
 def sanity_startup_check():
-	if not isfile(core['SSL']['key']):
-		raise SanityCheck('Certificate error: Missing Key')
-	if not isfile(core['SSL']['cert']):
-		raise SanityCheck('Certificate error: Missing Cert')
+	if core['SSL']['enabled']:
+		if not isfile(core['SSL']['key']):
+			raise SanityCheck('Certificate error: Missing Key')
+		if not isfile(core['SSL']['cert']):
+			raise SanityCheck('Certificate error: Missing Cert')
 
 	if isfile(pidfile):
 		with open(pidfile) as fh:
-			thepid = int(fh.read())
+			thepid = fh.read()
+			if len(thepid) == 0:
+				thepid = '-1'
+			thepid = int(thepid)
 		if pid_exists(thepid):
 			exit(1)
 		else:
-			print 'Removed the PID file, dead session!'
+			print('Removed the PID file, dead session!')
 			remove(pidfile)
 
 	for storages in core['storages']:
 		if not isdir(core['storages'][storages]):
-			print ' ! Warning - Missing storage: ' + core['storages'][storages]
+			print(' ! Warning - Missing storage: ' + core['storages'][storages])
 			## TODO: Create these missing folders,
 			##       but do it in a clean non-introusive way
 			##       (for instance, having default storage to /var would cause issues)
@@ -76,43 +84,120 @@ def getDomainInfo(domain):
 
 	return host, domain
 
+def splitMail(to):
+	return to.split('@', 1)
+
 def local_mail(_from, _to, message):
 	if _to in core['storages']:
 		path = core['storages'][_to] + '/'
+	elif '@POSTGRESQL' in core['storages']:
+		conn = psycopg2.connect("dbname=DB user=DBUSER password=DBPASSWORD")
+		cur = conn.cursor()
+		cur.execute("CREATE TABLE IF NOT EXISTS newtable (id bigserial PRIMARY KEY, mailbox varchar(255), domain varchar(255), account varchar(20));")
+		user, domain = splitMail(to)
+
+		cur.execute("SELECT * FROM newtable WHERE ")
+
+		#>>> cur.execute("INSERT INTO test (num, data) VALUES (%s, %s)",
+		#...      (100, "abc'def"))
+
+		# Query the database and obtain data as Python objects
+		#>>> cur.execute("SELECT * FROM test;")
+		#>>> cur.fetchall()
+		#(1, 100, "abc'def")
 	else:
 		path = core['storages']['default'] + '/'
 
-	with open(path + _from + '-' + str(time()) + '.mail', 'wb') as fh:
+	# TODO: remove ../ form _from
+	mail_file = abspath(path + '/new/') + '/' + _from + '-' + str(time()) + '.mail'
+
+	with open(mail_file, 'w') as fh:
 		fh.write(message)
+
+	if isfile(mail_file):
+		uid = pwd.getpwnam("torxed").pw_uid
+		gid = grp.getgrnam("torxed").gr_gid
+		chown(mail_file, uid, gid)
 
 	return True
 
 def external_mail(_from, to, message):
+	import dns.resolver
+	for x in dns.resolver.query(getDomainInfo(to)[1], 'MX'):
+		try:
+			print(' | Trying to deliver externally via MX lookup:', x.exchange.to_text())
+			server = smtplib.SMTP(x.exchange.to_text().rstrip('\\.,\'"\r\n '), 587, timeout=5)
+			server.ehlo()
+			server.starttls()
+		except:
+			try:
+				server = smtplib.SMTP(x.exchange.to_text().rstrip('\\.,\'"\r\n '), 25, timeout=5)
+				server.ehlo()
+				server.starttls()
+			except:
+				if core['external']['enforce_tls']:
+					print(' ! The relay-server doesn\'t support TLS/SSL!')
+					try: server.quit()
+					except: pass
+					continue # Try the next one
+				else:
+					print(' ! Could not initated TLS, falling back to PLAIN')
+					try: server.quit()
+					except: pass
+					try:
+						server = smtplib.SMTP(x, 25, timeout=5)
+						server.ehlo()
+					except:
+						try: server.quit()
+						except: pass
+						continue
+
+		try:
+			server.sendmail(_from, to, message)
+		except smtplib.SMTPRecipientsRefused:
+			print(' ! Could not relay the mail, Recipient Refused!')
+			server.quit()
+			return False
+
+		except Exception as e:
+			if type(e) == tuple and len(e) >= 3:
+				print( ' !- ' + str(e[0]) + ' ' + str(e[1]))
+			server.quit()
+			return False
+
+		print(' | Delivery done!')
+		server.quit()
+		return True
+
+	print(' ! No more external servers to try for the domain:', getDomainInfo(to)[1])
+	return False
+
+def relay(_from, to, message):
 	server = smtplib.SMTP(core['relay'][0], core['relay'][1])
 	server.ehlo()
 	if core['relay'][2]:
 		try:
 			server.starttls()
 		except:
-			print ' ! The relay-server doesn\'t support TLS/SSL!'
+			print( ' ! The relay-server doesn\'t support TLS/SSL!')
 			server.quit()
 			return False
 	if len(core['relay']) >= 5:
 		try:
 			server.login(core['relay'][3], core['relay'][4])
 		except:
-			print ' ! Invalid credentials towards relay server'
+			print( ' ! Invalid credentials towards relay server')
 			server.quit()
 			return False
 	try:
 		server.sendmail(_from, to, message)
 	except smtplib.SMTPRecipientsRefused:
-		print ' ! Could not relay the mail, Recipient Refused!'
+		print( ' ! Could not relay the mail, Recipient Refused!')
 		server.quit()
 		return False
-	except Exception, e:
+	except Exception as e:
 		if type(e) == tuple and len(e) >= 3:
-			print ' !- ' + str(e[0]) + ' ' + str(e[1])
+			print( ' !- ' + str(e[0]) + ' ' + str(e[1]))
 		server.quit()
 		return False
 
@@ -144,13 +229,13 @@ class parser():
 		## mainly because reset is called inside the data loop.
 
 	def deliver(self):
-		print ' | Sending mail: ' + self.From + '(' + self.authed_session + ') -> ' + self.to
+		print( ' | Sending mail:',self.From,'(',self.authed_session,') -> ',self.to)
 		## == Just to make sure, as long as we're authenticated and the authenticated "user"
 		## == doesn't begin with an "#" (reserved for system-design-users), we'll send externally.
 		if self.external and self.authed_session and self.authed_session[0] != '#':
 			if external_mail(self.From, self.to, self.data + '\r\n.\r\n'):
 				self.reset()
-				return '250 2.0.0 Ok: queued as ' + b64encode(str(time())) + '\r\n'
+				return '250 2.0.0 Ok: queued as ' + b64encode(bytes(str(time()), 'UTF-8')).decode('utf-8') + '\r\n'
 		elif self.external and not self.authed_session:
 			return '504 need to authenticate first\r\n'
 		elif not self.external:
@@ -165,12 +250,41 @@ class parser():
 		response = ''
 		if mode[:5] == 'PLAIN':
 			mode, password = mode.split(' ',1)
-			authid, username, password = b64decode(password).split('\x00',2)
+			authid, username, password = b64decode(bytes(password, 'UTF-8')).split(b'\x00',2)
+
 			if username in core['users'] and core['users'][username]['password'] == password:
 				self.authed_session = username
 				response += '235 2.7.0 Authentication successful\r\n'
+			elif '@POSTGRESQL' in core['users'] and core['users']['@POSTGRESQL']:
+				# Connect to an existing database
+				#>>> conn = psycopg2.connect("dbname=test user=postgres")
+
+				# Open a cursor to perform database operations
+				#>>> cur = conn.cursor()
+
+				# Execute a command: this creates a new table
+				#>>> cur.execute("CREATE TABLE test (id serial PRIMARY KEY, num integer, data varchar);")
+
+				# Pass data to fill a query placeholders and let Psycopg perform
+				# the correct conversion (no more SQL injections!)
+				#>>> cur.execute("INSERT INTO test (num, data) VALUES (%s, %s)",
+				#...      (100, "abc'def"))
+
+				# Query the database and obtain data as Python objects
+				#>>> cur.execute("SELECT * FROM test;")
+				#>>> cur.fetchone()
+				#(1, 100, "abc'def")
+				pass
+			elif '@PAM' in core['users'] and core['users']['@PAM']:
+				if core['users']['@PAM'].authenticate(username, password):
+					self.authed_session = username
+					response += '235 2.7.0 Authentication successful\r\n'
+				else:
+					print( ' ! No such user:',[username, '*****']) # password
+					# 535 5.7.1 authentication failed\r\n
+					response += '535 5.7.8 Error: authentication failed\r\n'					
 			else:
-				print ' ! No such user:',[username]
+				print( ' ! No such user:',[username, '*****']) # password
 				# 535 5.7.1 authentication failed\r\n
 				response += '535 5.7.8 Error: authentication failed\r\n'
 			del password
@@ -311,6 +425,9 @@ class _clienthandle(Thread):
 		self.start()
 
 	def send(self, data):
+		if type(data) == str:
+			data = bytes(data, 'UTF-8')
+
 		if self.ssl:
 			self.socket.write(data)
 		else:
@@ -324,8 +441,10 @@ class _clienthandle(Thread):
 				if self.ssl: data = self.socket.read()
 				else: data = self.socket.recv(8192)
 			except:
-				print ' ! ' + str(self.addr[0]) + ' disconnected unexpectedly'
+				print( ' ! ' + str(self.addr[0]) + ' disconnected unexpectedly')
 				break
+
+			data = data.decode('utf-8') # TODO: Handle bytes data everywhere else instead, less complicated with multilang support
 
 			## To enforce SSL:
 			# First we check if we want to enforce SSL via core['_socket']['SSL']
@@ -336,16 +455,16 @@ class _clienthandle(Thread):
 			#
 			# And to reject anything besides these two commands, we send:
 			# - 530 5.7.0 Must issue a STARTTLS command first
-			if core['_socket']['SSL'] and self.ssl == False and (data[:4] != 'EHLO' and data != 'STARTTLS'):
+			if core['SSL']['enabled'] and self.ssl == False and (data[:4] != 'EHLO' and data != 'STARTTLS'):
 				if not 'STARTTLS' in data:
-					self.send('530 5.7.0 Must issue a STARTTLS command first\r\n')
+					self.send(b'530 5.7.0 Must issue a STARTTLS command first\r\n')
 					break
 				else:
-					self.send('220 2.0.0 Ready to start TLS\r\n')
+					self.send(b'220 2.0.0 Ready to start TLS\r\n')
 					self.socket = ssl.wrap_socket(self.socket, keyfile=core['SSL']['key'], certfile=core['SSL']['cert'], server_side=True, do_handshake_on_connect=True, suppress_ragged_eofs=False, cert_reqs=ssl.CERT_NONE, ca_certs=None, ssl_version=core['SSL']['VERSION'])
 					self.ssl = True
 					self.parser.ssl = self.ssl
-					print ' | Converted into a SSL socket!'
+					print( ' | Converted into a SSL socket!')
 					continue
 
 			recieved_data += data
@@ -371,18 +490,24 @@ class _clienthandle(Thread):
 			pass
 
 class _socket(Thread, socket):
-	def __init__(self):
+	def __init__(self, listen, port):
 		socket.__init__(self)
 
-		while 1:
+		for i in range(6):
 			try:
-				self.bind((core['_socket']['listen'], core['_socket']['port']))
+				self.bind((listen, port))
+				self.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 				break
 			except:
 				sleep(5)
-		self.listen(4)
 
-		print ' | Bound to ' + ':'.join((core['_socket']['listen'], str(core['_socket']['port'])))
+		try:
+			self.listen(4)
+		except:
+			print(' ! Could not bind main socket in 30 seconds, exiting.')
+			return False
+
+		print( ' | Bound to ' + ':'.join((listen, str(port))))
 
 		Thread.__init__(self)
 		self.start()
@@ -398,8 +523,9 @@ class _socket(Thread, socket):
 				core['clients'] = {}
 
 			core['clients'][str(na[0]) + ':' + str(na[1])] = {'socket' : ns, 'address' : na}
+			print(' ?', na, 'has connected')
 
-			ns.send('220 ' + core['domain'] + ' ESMTP SlimSMTP\r\n')
+			ns.send(b'220 ' + bytes(core['domain'], 'UTF-8') + b' ESMTP SlimSMTP\r\n')
 			ch = _clienthandle(ns, na)
 			sleep(0.025)
 		self.close()
@@ -407,11 +533,13 @@ class _socket(Thread, socket):
 sanity_startup_check()
 
 pid = getpid()
-f = open(pidfile, 'wb')
+f = open(pidfile, 'w')
 f.write(str(pid))
 f.close()
 
-s = _socket()
+for port in core['_socket']['ports']:
+	s = _socket(core['_socket']['listen'], port)
+
 signal.signal(signal.SIGINT, signal_handler)
 while 1:
 	sleep(1)
