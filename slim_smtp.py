@@ -1,12 +1,27 @@
 #!/usr/bin/python
 # -*- coding: iso-8859-15 -*-
-import asyncore, re, smtplib, ssl, signal, pwd, grp, pam #psycopg2
+import asyncore, re, smtplib, ssl, signal, pwd, grp, pam, psycopg2, psycopg2.extras
 from base64 import b64encode, b64decode
 from threading import *
 from socket import *
 from time import sleep, strftime, localtime, time
 from os import _exit, remove, getpid, kill, chown
-from os.path import isfile, isdir, abspath
+from os.path import isfile, isdir, abspath, expanduser
+
+#conn = psycopg2.connect("dbname=DBNAME user=DBUSER password=DBPASS") # dbname=postgres
+#cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+#cur.execute("DROP TABLE IF EXISTS smtp;")
+#cur.execute("CREATE TABLE IF NOT EXISTS smtp (id bigserial PRIMARY KEY, mailbox varchar(255), domain varchar(255), account_backend varchar(20), UNIQUE (mailbox, domain));")
+#cur.execute("INSERT INTO smtp (mailbox, domain, account_backend) VALUES('anton', 'example.com', 'PAM');")
+#cur.execute("INSERT INTO smtp (mailbox, domain, account_backend) VALUES('anton', '@SOCIAL', 'ALIAS');")
+#cur.execute("INSERT INTO smtp (mailbox, domain, account_backend) VALUES('facebook', 'example.com', '@SOCIAL');")
+#cur.execute("INSERT INTO smtp (mailbox, domain, account_backend) VALUES('twitter', 'example.com', '@SOCIAL');")
+
+#cur.close()
+#conn.commit()
+#conn.close()
+#exit(1)
 
 __date__ = '2013-07-10 09:46 CET'
 __version__ = '0.0.7p2'
@@ -20,8 +35,11 @@ core = {'_socket' : {'listen' : '', 'ports' : [25, 587]},
 		'users' : {b'testuser' : {'password' : '1234'}, '@POSTGRESQL' : False, '@PAM' : pam.pam()},
 		'relay' : {'active' : False, 'host' : 'smtp.t3.se', 'port' : 25, 'TLS' : False},
 		'external' : {'enforce_tls' : True},
-		'storages' : {'anton@'+DOMAIN : '/home/anton/Maildir/',
-					'default' : '/home/anton/Maildir/'}}
+		'storages' : {'testuser@'+DOMAIN : '/home/anton/Maildir/',
+					'default' : '/home/anton/Maildir/',
+					'@POSTGRESQL' : True,
+					'@PAM' : False}
+		}
 
 class SanityCheck(Exception):
 	pass
@@ -67,6 +85,7 @@ def sanity_startup_check():
 			remove(pidfile)
 
 	for storages in core['storages']:
+		if storages[0] == '@': continue # It's a flag for soft storage links (for instance postgresql)
 		if not isdir(core['storages'][storages]):
 			print(' ! Warning - Missing storage: ' + core['storages'][storages])
 			## TODO: Create these missing folders,
@@ -87,37 +106,64 @@ def getDomainInfo(domain):
 def splitMail(to):
 	return to.split('@', 1)
 
-def local_mail(_from, _to, message):
-	if _to in core['storages']:
-		path = core['storages'][_to] + '/'
-	elif '@POSTGRESQL' in core['storages']:
-		conn = psycopg2.connect("dbname=DB user=DBUSER password=DBPASSWORD")
-		cur = conn.cursor()
-		cur.execute("CREATE TABLE IF NOT EXISTS newtable (id bigserial PRIMARY KEY, mailbox varchar(255), domain varchar(255), account varchar(20));")
-		user, domain = splitMail(to)
-
-		cur.execute("SELECT * FROM newtable WHERE ")
-
-		#>>> cur.execute("INSERT INTO test (num, data) VALUES (%s, %s)",
-		#...      (100, "abc'def"))
-
-		# Query the database and obtain data as Python objects
-		#>>> cur.execute("SELECT * FROM test;")
-		#>>> cur.fetchall()
-		#(1, 100, "abc'def")
-	else:
-		path = core['storages']['default'] + '/'
-
-	# TODO: remove ../ form _from
-	mail_file = abspath(path + '/new/') + '/' + _from + '-' + str(time()) + '.mail'
-
+def save_mail(mail_file, message, account):
 	with open(mail_file, 'w') as fh:
 		fh.write(message)
-
 	if isfile(mail_file):
-		uid = pwd.getpwnam("torxed").pw_uid
-		gid = grp.getgrnam("torxed").gr_gid
+		uid = pwd.getpwnam(account).pw_uid
+		gid = grp.getgrnam(account).gr_gid
 		chown(mail_file, uid, gid)
+
+def local_mail(_from, _to, message):
+	mailbox, domain = splitMail(_to)
+
+	if _to in core['storages']:
+		print(' | Delivering to local storage: ~/'+_to, '(soft-link)')
+		path = core['storages'][_to] + '/'
+		mail_file = abspath(path + '/new/') + '/' + _from + '-' + str(time()) + '.mail'
+
+		# TODO: remove ../ form _from
+		save_mail(mail_file, message, mailbox)
+
+	elif '@POSTGRESQL' in core['storages'] and core['storages']['@POSTGRESQL']:
+		conn = psycopg2.connect("dbname=example user=example password=example") # dbname=postgres
+		cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+		# mailbox, domain,  account_backend
+		# anton    gh.com   PAM
+		# anton    @SOCIAL  ALIAS
+		# facebook gh.com   @SOCIAL
+		# twitter  gh       @SOCIAL
+		cur.execute("SELECT * FROM smtp WHERE mailbox='"+mailbox+"' AND domain='"+domain+"';")
+		for row in cur.fetchall():
+			if row['account_backend'] == 'PAM':
+				print(' | Delivering to local storage: ~/'+_to, '(postgresql)')
+				mail_file = abspath(expanduser('~'+row['mailbox']) + '/Maildir/new/' + _from + '-' + str(time()) + '.mail')
+				save_mail(mail_file, message, row['mailbox'])
+
+			elif row['account_backend'][0] == '@':
+				# TODO: Don't forget to check backend_account against subcursor results!
+				#       :)
+				print(' | Delivering to shared mailbox:', row['mailbox'], '(postgresql)')
+				print(' |- Members:')
+				subcur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+				subcur.execute("SELECT * FROM smtp WHERE domain='"+row['account_backend']+"';")
+				for subrow in subcur.fetchall():
+					print(' |    ', subrow['mailbox']+'@'+row['domain'])
+					mail_file = abspath(expanduser('~'+subrow['mailbox']) + '/Maildir/new/' + _from + '-' + str(time()) + '.mail')
+					save_mail(mail_file, message, subrow['mailbox'])
+				subcur.close()
+		cur.close()
+		conn.close()
+
+	else:
+		print(' | Delivering to local storage: ~/'+_to, '(default-link)')
+		path = core['storages']['default'] + '/'
+		mail_file = abspath(path + '/new/') + '/' + _from + '-' + str(time()) + '.mail'
+
+
+		# TODO: remove ../ form _from
+		save_mail(mail_file, message, mailbox)
 
 	return True
 
@@ -253,9 +299,11 @@ class parser():
 			authid, username, password = b64decode(bytes(password, 'UTF-8')).split(b'\x00',2)
 
 			if username in core['users'] and core['users'][username]['password'] == password:
+				print(' | Trying login against soft passwords')
 				self.authed_session = username
 				response += '235 2.7.0 Authentication successful\r\n'
 			elif '@POSTGRESQL' in core['users'] and core['users']['@POSTGRESQL']:
+				print(' | Trying passwords against postgresql')
 				# Connect to an existing database
 				#>>> conn = psycopg2.connect("dbname=test user=postgres")
 
@@ -276,6 +324,7 @@ class parser():
 				#(1, 100, "abc'def")
 				pass
 			elif '@PAM' in core['users'] and core['users']['@PAM']:
+				print (' | Trying password against PAM')
 				if core['users']['@PAM'].authenticate(username, password):
 					self.authed_session = username
 					response += '235 2.7.0 Authentication successful\r\n'
@@ -468,6 +517,7 @@ class _clienthandle(Thread):
 					continue
 
 			recieved_data += data
+			if len(recieved_data) == 0: break # TODO: Debug if this is OK
 			response, recieved_data = self.parser.parse(recieved_data)
 
 			if len(response) > 0:
