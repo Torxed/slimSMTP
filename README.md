@@ -11,6 +11,18 @@ Key features
 * Less code `(~289 rows)` for a more secure overview
 * Easy to administrate and set up
 
+Installation
+============
+
+    CREATE TABLE IF NOT EXISTS smtp (id bigserial PRIMARY KEY, mailbox varchar(255), domain varchar(255), account_backend varchar(20), UNIQUE (mailbox, domain));
+    INSERT INTO smtp (mailbox, domain, account_backend) VALUES('anton', 'gentlehens.com', 'PAM');
+    INSERT INTO smtp (mailbox, domain, account_backend) VALUES('anton', '@SOCIAL', 'ALIAS');
+    INSERT INTO smtp (mailbox, domain, account_backend) VALUES('facebook', 'gentlehens.com', '@SOCIAL');
+    INSERT INTO smtp (mailbox, domain, account_backend) VALUES('twitter', 'gentlehens.com', '@SOCIAL');
+
+and then simply run:
+
+    python slim_smtp.py
 
 Todos
 =====
