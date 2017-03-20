@@ -11,15 +11,18 @@ Key features
 * Less code `(~500 rows)` for a more secure overview
 * Easy to administrate and set up
 
-Notes about the binary blob and helpers.source:
+Plugins:
 ======
+The main code can be run as is,<br>
+it will default to some primitive mail storage solutions (PAM).
 
-Just to get a better overview of the main code blocks..<br>
-I did what you normally shouldn't do and that is compress<br>
-the raw code into a gzip blob which I in runtime deflate and compile.<br>
+The plugins are optional, but they can expand slim_smtp's functionality without breaking the main code.<br>
+This is because plugins register itself as a backend via `core['storages']['@<engine>'] = engine_class()`.
 
-Now before you say no, this highly temporary and sort of an experiment.<br>
-Once I've restructured the main code blocks this code will be brough back in regular form.
+This tells `slim_smtp` that all users with `account_backend` `<engine>` should go to `@<engine>.store()`.<br>
+Because of this, you can ad-hoc in as many endpoints as you wish.<br>
+(deliver your emails to FB? create `@FACEBOOK` and `account_backend=FACEBOOK` and slim_smtp will deliver to that plugin)
+
 
 Installation
 ============
