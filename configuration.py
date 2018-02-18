@@ -18,7 +18,8 @@ config = {'pidfile' : '/var/run/slimSMTP.pid',
 
 		  'users' : {'anton' : {'password' : 'test', 'storage' : maildir('/home/anton/Maildir/new')} },
 		  'mailboxes' : {'anton@hvornum.se' : 'anton',
-		  				 'anton@xn--frvirrad-n4a.se' : 'anton'},
+		  				 'anton@xn--frvirrad-n4a.se' : 'anton',
+						 '*@hvornum.se' : 'anton'}, # This defaults all unknown @hvornum.se recipiants to 'anton'
 
 		  'postgresql' : {'database' : 'slimSMTP', 'username' : 'slimSMTP', 'password' : 'test'},
 		  'poll_timeout' : 0.5
