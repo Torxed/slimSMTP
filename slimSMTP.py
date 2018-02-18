@@ -55,7 +55,10 @@ class client():
 
 	def recv(self, buffert=None):
 		if not buffert: buffert=self.buffer
-		data = self.socket.recv(buffert)
+		if self.sslified:
+			data = self.socket.read(buffert)
+		else:
+			data = self.socket.recv(buffert)
 
 		if len(data) <= 0:
 			self.socket.close()
@@ -100,9 +103,14 @@ class mail_delivery(client):
 				return terminate_socket(self.socket)
 
 			if not reciever in config['mailboxes']:
-				log('Mailbox {} is not configured.'.format(reciever), host=self.addr, product='slimSMTP', handler='mail_delivery', level=3)
-				self.send('550 Address not configured on this site.')
-				continue
+				default_reciever = b'*@'+self.domain(reciever)
+				if default_reciever.decode('UTF-8') in config['mailboxes']:
+					log('Mailbox {} is not configured, but can default to {}'.format(reciever, default_reciever.decode('UTF-8')), host=self.addr, product='slimSMTP', handler='mail_delivery', level=3)
+					reciever = default_reciever.decode('UTF-8')
+				else:
+					log('Mailbox {} is not configured.'.format(reciever), host=self.addr, product='slimSMTP', handler='mail_delivery', level=3)
+					self.send('550 Address not configured on this site.')
+					continue
 			
 			owner = config['mailboxes'][reciever]
 			if type(owner) == bytes: owner = owner.decode('UTF-8')
