@@ -1,4 +1,5 @@
-import psycopg2, psycopg2.extras, json
+import psycopg2, psycopg2.extras
+import json
 from systemd import journal
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from hashlib import sha256
@@ -6,7 +7,8 @@ from struct import pack
 from os import urandom
 from time import time
 
-#from configuration import config
+## `import config` is redundant, config is globalized (available througout the runtime) from slimSMTP.py
+## This is done in order to circumvent odd import loops.
 
 DEBUG = {'started' : False}
 
@@ -146,5 +148,6 @@ def log(*args, **kwargs):
 			pass
 
 		if not 'level' in kwargs or kwargs['level'] >= config['log_level']:
-			log_row = {'level' : (kwargs['level'] if 'level' in kwargs else None), 'message' : logdata, **kwargs}
+			log_row = {'level' : (kwargs['level'] if 'level' in kwargs else None), 'message' : logdata}
+			log_row.update(kwargs)
 			print(json.dumps(log_row), file=runtime['_logstream'])

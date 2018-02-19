@@ -31,15 +31,16 @@ Configuration
 The basic idea is that you simply modify `configuration.py` in the code the dictionary itself or under `/etc/slimSMTP/`.<br>
 This consist of a few settings which I'll try to explain here:
 
- * pidfile         - It is what it is, it's the pid file
- * ssl             - Contains certificate and version information and a flag to enforce SSL for _all_ sockets and mail-deliveries.
  * domains         - A sub-dictionary to enable support for multiple domain configurations.
  * users           - Now, this is **NOT** email address, it's the accounts we can authenticate for external mail deliveries.
                      The fields which needs to be defined for each user are `password` which, will be required if the sender tries to send external emails.
                      `storage` which is the storage class slimSMTP will use to call `.store(from, to, message)` on in order to store the incomming email.
- * core.relay      - TODO: Bring back relay possibilities. Didn't prioritize it in `v0.1.0` code rewrite.
  * mailboxes       - For now, these are key, value pairs where the key is the full email address and the value is the username it belongs to.
+ * filepermissions - Unless `owner=...` is specified in the `users` configuration, these filepermissions will be used. (note: `user` definitions override `filepermissions`!)
+ * ssl             - Contains certificate and version information and a flag to enforce SSL for _all_ sockets and mail-deliveries.
+ * relay           - TODO: Bring back relay possibilities. Didn't prioritize it in `v0.1.0` code rewrite.
  * postgresql      - Credentials for the database backend (if opted in for it) [TODO: bring back PostgreSQL mailbox delivery options]
+ * pidfile         - It is what it is, it's the pid file
 
 How to run
 ==========
@@ -47,6 +48,23 @@ How to run
 It shouldn't be more to it than to run:
 
     # python slim_smtp.py
+
+Changelog
+=========
+
+### 0.1.2
+ * Support for `/etc/slimSMTP/configuration.py` configuration location.
+ * Support looking for helper, storage and other libraries under `/usr/lib/slimSMTP/*.py`
+ * Optimized some of the log events
+ * Added file permissions for all incomming emails based on configration (`owner` in `user` definitions or `filepermissions`)
+ * Added some additional error handling (still far from done)
+ * Added `custom_load()` that will import a library/module based on a full path rather than traditional `import x` (**Python3.5+**)
+
+### 0.1.1
+ * Default (unknown recipients) mailbox storage per domain via `*@domain.com` definition.
+
+### 0.1.0
+ * Rewrite, supports basic recieving, auth and sending internal emails.
 
 Todos
 =====

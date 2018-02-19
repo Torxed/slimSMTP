@@ -1,22 +1,54 @@
 import smtplib
 import imp, importlib.machinery, signal, re
-from ssl import wrap_socket, CERT_NONE
+from ssl import wrap_socket, CERT_NONE, SSLError
 from socket import *
 from select import epoll, EPOLLIN, EPOLLOUT, EPOLLHUP
 from base64 import b64encode, b64decode
 from time import sleep, strftime, localtime, time
 from os import remove, getpid, kill, chown
+from os.path import basename
 from json import loads, dumps
 
-from helpers import postgres, generate_UID, dCheck, log as logger, safeDict, signal_handler
-from configuration import config as local_conf
-from authentication import internal, pam
+def custom_load(path, namespace=None):
+	if not namespace: namespace = basename(path).replace('.py', '').replace('.', '_')
+
+	loader = importlib.machinery.SourceFileLoader(namespace, path)
+	handle = loader.load_module(namespace)
+	return handle
+
+## Custom library imports.
+## Upon cloning or running locally, they usually reside in the same folder.
+## But upon "installation" they might be moved to /usr/lib to not clutter down /usr/bin.
+## - Also the config is assumed to live under /etc/slimSMTP if not locally
+try:
+	from configuration import config as local_conf
+except:
+	handle = custom_load('/etc/slimSMTP/configuration.py')
+	local_conf = handle.config
+
+try:
+	from authentication import internal, pam
+except:
+	handle = custom_load('/usr/lib/slimSMTP/authentication.py')
+	internal = handle.internal
+	pam = handle.pam
+
+try:
+	from helpers import generate_UID, dCheck, log as logger, safeDict, signal_handler#, postgres
+except:
+	handle = custom_load('/usr/lib/slimSMTP/helpers.py')
+	#postgres = handle.postgres
+	generate_UID = handle.generate_UID
+	dCheck = handle.dCheck
+	logger = handle.log
+	safeDict = handle.safeDict
+	signal_handler = handle.signal_handler
 
 __builtins__.__dict__['log'] = logger
 __builtins__.__dict__['config'] = local_conf
 
-__date__ = '2018-02-18 22:23 CET'
-__version__ = '0.1.0'
+__date__ = '2018-02-19 21:54 CET'
+__version__ = '0.1.2'
 __author__ = 'Anton Hvornum'
 
 runtimemap = {'_poller' : epoll(),
@@ -46,7 +78,10 @@ class client():
 		if not type(bdata) == bytes:
 			bdata = bytes(bdata, 'UTF-8')
 
-		self.socket.send(bdata+lending)
+		try:
+			self.socket.send(bdata+lending)
+		except BrokenPipeError:
+			return terminate_socket(self.socket)
 
 	def non_ssl_command(self, command):
 		if command.lower() in ['ehlo', 'starttls']:
@@ -56,23 +91,22 @@ class client():
 	def recv(self, buffert=None):
 		if not buffert: buffert=self.buffer
 		if self.sslified:
-			data = self.socket.read(buffert)
+			try:
+				data = self.socket.read(buffert)
+			except SSLError:
+				log('Unknown CA or broken pipe.')
+
 		else:
 			data = self.socket.recv(buffert)
 
 		if len(data) <= 0:
-			self.socket.close()
-			return False
+			return terminate_socket(self.socket)
 		self.data += data
 
 		return True
 
 	def parse(self):
 		pass
-
-#		if not self.sslified:
-#			if self.data[self.data_pos:self.data_pos+4].lower() != 'ehlo' and self.data[self.data_pos:] != 'STARTTLS':
-#				pass #print(self.data)
 
 def terminate_socket(socket):
 	runtime['_poller'].unregister(socket.fileno())
@@ -240,8 +274,9 @@ class auth_login(client):
 					runtime['_clients'][self.socket.fileno()] = mail_delivery(self.socket, self.addr, username=self.username, data=self.data, data_pos=self.data_pos+len(line+b'\r\n'))
 					return True
 
+			log('{} has failed to login!'.format(username), product='slimSMTP', handler='auth_login', level=10)
 			self.send('535 5.7.8 Error: authentication failed.')
-			return self.terminate_socket(self.socket)
+			return terminate_socket(self.socket)
 
 class auth_plain(client):
 	def __init__(self, socket, addr, *args, **kwargs):
@@ -270,8 +305,9 @@ class auth_plain(client):
 							runtime['_clients'][self.socket.fileno()] = mail_delivery(self.socket, self.addr, username=username, data=self.data, data_pos=self.data_pos+len(line+b'\r\n'))
 							return True
 
+					log('{} has failed to login!'.format(username), product='slimSMTP', handler='auth_plain', level=10)
 					self.send('535 5.7.8 Error: authentication failed.')
-					return self.terminate_socket(self.socket)
+					return terminate_socket(self.socket)
 
 				next_pos += len(line)
 			self.data_pos = next_pos
@@ -325,9 +361,10 @@ class pre_auth(client):
 				next_pos += len(line)
 			self.data_pos = next_pos
 
+## Create the main sockets, port 25 and port 587.
 runtime['_sockets']['port_25'] = socket()
 runtime['_sockets']['port_25'].setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-runtime['_sockets']['port_25'].bind(('', 25)) # TODO: 25
+runtime['_sockets']['port_25'].bind(('', 25))
 runtime['_sockets']['port_25'].listen(4)
 runtime['_sockets']['port_587'] = socket()
 runtime['_sockets']['port_587'].setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
@@ -335,6 +372,7 @@ runtime['_sockets']['port_587'].bind(('', 587))
 runtime['_sockets']['port_587'].listen(4)
 runtime['_sockets']['port_587'] = wrap_socket(runtime['_sockets']['port_587'], keyfile=config['ssl']['key'], certfile=config['ssl']['cert'], server_side=True, do_handshake_on_connect=True, suppress_ragged_eofs=False, cert_reqs=CERT_NONE, ca_certs=None, ssl_version=config['ssl']['VERSION'])
 
+## Register the main sockets in EPOLL()
 runtime['_poller'].register(runtime['_sockets']['port_25'].fileno(), EPOLLIN)
 runtime['_poller'].register(runtime['_sockets']['port_587'].fileno(), EPOLLIN)
 
@@ -361,8 +399,11 @@ while 1:
 
 		elif fileno in runtime['_clients']:
 			if not runtime['_clients'][fileno].recv():
-				runtime['_poller'].unregister(fileno)
-				del(runtime['_clients'][fileno])
+				try:
+					runtime['_poller'].unregister(fileno)
+					del(runtime['_clients'][fileno])
+				except KeyError:
+					pass
 
 	#try:
 	for fileno in list(runtime['_clients'].keys()):
@@ -371,5 +412,5 @@ while 1:
 	#except RuntimeError:
 	#	Dictionary changed size during iteration
 
-#runtime['_sockets']['port_587'].close()
+runtime['_sockets']['port_587'].close()
 runtime['_sockets']['port_25'].close()
