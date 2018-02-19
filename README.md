@@ -3,20 +3,13 @@ SlimSMTP
 
 A Simple and Slim SMTP server aiming for a minimalistic and simple design.
 
-Key features
+Requirements
 ============
-* Simple to configure via configuration.py
-* Less code `(~500 rows)` for a more secure overview
-* Easy to administrate and set up
 
-Plugins:
-======
-The main code can be run as is,<br>
-it will default to some primitive mail storage solutions (PAM, configured users and Maildir syntax).
-
-The plugins are optional, but they can expand slim_smtp's functionality without complicating the main functionality.<br>
-
-TODO: Bring back the plugin support.
+ * Python3.5+
+ * python-pam
+ * python-psycopg2
+ * python-systemd
 
 Installation
 ============
