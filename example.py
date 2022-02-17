@@ -13,8 +13,8 @@ session = slimSMTP.Session(addr='127.0.0.1', port=81923)
 
 parser = slimSMTP.Parser(
 	expectations=[
-		slimSMTP.Command(string='ehlo', handler=slimSMTP.EHLO),
-		slimSMTP.Command(string='quit', handler=slimSMTP.QUIT)
+		slimSMTP.EHLO,
+		slimSMTP.QUIT
 	]
 )
 

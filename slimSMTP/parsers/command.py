@@ -17,10 +17,9 @@ class Command(pydantic.BaseModel):
 		for result in self.handler(obj).respond(obj):
 			yield result
 
-@authenticated(False)
-class EHLO:
+class EHLO(Command):
 	def __init__(self, obj :CMD_DATA):
-		pass
+		super(EHLO, self).__init__(string='ehlo', handler=self)
 
 	def respond(self, obj :CMD_DATA):
 		supports = [
@@ -41,9 +40,9 @@ class EHLO:
 
 		yield response
 
-class QUIT:
-	def __init__(self):
-		pass
+class QUIT(Command):
+	def __init__(self, obj :CMD_DATA):
+		super(EHLO, self).__init__(string='ehlo', handler=self)
 
 	def respond(self, obj :CMD_DATA):
 		pass

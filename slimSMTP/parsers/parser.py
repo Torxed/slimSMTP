@@ -1,9 +1,9 @@
 import pydantic
-from typing import List
-from .command import Command
+from typing import List, Union
+from .command import EHLO, QUIT
 
 class Parser(pydantic.BaseModel):
-	expectations: List[Command]
+	expectations: List[Union[EHLO, QUIT]]
 
 	def parse(self, cmd_data):
 		for cmd_handler in self.expectations:
