@@ -4,5 +4,5 @@ from ..realms import Realm
 
 class Configuration(pydantic.BaseModel):
 	port: int
-	bind: str
+	address: str
 	realms: List[Realm]

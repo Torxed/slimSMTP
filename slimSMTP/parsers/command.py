@@ -1,13 +1,13 @@
 import pydantic
-from typing import Callable
+from typing import Callable, List
 from ..realms import Realm
-from ..sessions import Session
+from ..sockets import Client
 from ..exceptions import AuthenticationError
 
 class CMD_DATA(pydantic.BaseModel):
 	data: str
-	realm: Realm
-	session: Session
+	realms: List[Realm]
+	session: Client
 
 class authenticated:
 	def __init__(self, func, **kwargs):
@@ -33,7 +33,7 @@ class EHLO:
 
 	def respond(obj :CMD_DATA):
 		supports = [
-			obj.realm.fqdn,
+			obj.realms[0].fqdn,
 			'PIPELINING',
 			'SIZE 61440000',
 			'STARTTLS',
@@ -55,4 +55,10 @@ class QUIT:
 		return obj.data.lower().startswith('quit')
 
 	def respond(obj :CMD_DATA):
-		pass
+		yield b'221 OK\r\n'
+
+	def handle(obj :CMD_DATA):
+		for result in QUIT.respond(obj):
+			yield result
+
+		obj.session.close()

@@ -1,31 +1,41 @@
+import socket
 import slimSMTP
 
 configuration = slimSMTP.Configuration(
 	port=25,
-	bind='',
+	address='',
 	realms=[
 		slimSMTP.Realm(name='hvornum.se')
 	]
 )
 
-# listener = slimSMTP.serve(configuration)
-session = slimSMTP.Session(addr='127.0.0.1', port=81923, authenticated=True)
+server = slimSMTP.Server(configuration)
 
-parser = slimSMTP.Parser(
-	expectations=[
-		slimSMTP.EHLO,
-		slimSMTP.QUIT
-	]
-)
+# # listener = slimSMTP.serve(configuration)
+# session = slimSMTP.Client(parent=server, socket=socket.socket(), address=('127.0.0.1', 8950))
 
-for response in parser.parse(
-	slimSMTP.CMD_DATA(
-		data=b'EHLO <domain>\r\n',
-		realm=configuration.realms[0],
-		session=session
-	)):
+# parser = slimSMTP.Parser(
+# 	expectations=[
+# 		slimSMTP.EHLO,
+# 		slimSMTP.QUIT
+# 	]
+# )
 
-	print('Respnding with:', response)
+# for response in parser.parse(
+# 	slimSMTP.CMD_DATA(
+# 		data=b'EHLO <domain>\r\n',
+# 		realms=configuration.realms,
+# 		session=session
+# 	)):
+
+# 	print('Respnding with:', response)
+
+while server.poll() is True:
+	for client in server:
+		if data := client.get_data():
+			for response in client.parse(data):
+				client.respond(response)
+
 
 b'220 mail-halon-02.fbg1.glesys.net ESMTP\r\n'
 b'EHLO <domain>\r\n'
