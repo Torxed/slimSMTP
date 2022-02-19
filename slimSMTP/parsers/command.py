@@ -1,28 +1,37 @@
 import pydantic
 from typing import Callable
 from ..realms import Realm
+from ..sessions import Session
+from ..exceptions import AuthenticationError
 
 class CMD_DATA(pydantic.BaseModel):
 	data: str
 	realm: Realm
+	session: Session
 
-class Command(pydantic.BaseModel):
-	string: str
-	handler: Callable
+class authenticated:
+	def __init__(self, func, **kwargs):
+		if type(func).__name__ == 'type':
+			self.func = func
+
+			return None
+
+		if func.obj.session.authenticated == False:
+			raise AuthenticationError(f"Session({func.session}) is not authenticated and can not perform CMD({func})")
 
 	def can_hanadle(self, obj :CMD_DATA):
-		return obj.data.lower().startswith(self.string)
+		return self.func.can_hanadle(obj)
 
 	def handle(self, obj :CMD_DATA):
-		for result in self.handler(obj).respond(obj):
+		for result in self.func.respond(obj):
 			yield result
 
-@authenticated(False)
+@authenticated
 class EHLO:
-	def __init__(self, obj :CMD_DATA):
-		pass
+	def can_hanadle(obj :CMD_DATA):
+		return obj.data.lower().startswith('ehlo')
 
-	def respond(self, obj :CMD_DATA):
+	def respond(obj :CMD_DATA):
 		supports = [
 			obj.realm.fqdn,
 			'PIPELINING',
@@ -42,8 +51,8 @@ class EHLO:
 		yield response
 
 class QUIT:
-	def __init__(self):
-		pass
+	def can_hanadle(obj :CMD_DATA):
+		return obj.data.lower().startswith('quit')
 
-	def respond(self, obj :CMD_DATA):
+	def respond(obj :CMD_DATA):
 		pass

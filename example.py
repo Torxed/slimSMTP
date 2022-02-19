@@ -9,12 +9,12 @@ configuration = slimSMTP.Configuration(
 )
 
 # listener = slimSMTP.serve(configuration)
-session = slimSMTP.Session(addr='127.0.0.1', port=81923)
+session = slimSMTP.Session(addr='127.0.0.1', port=81923, authenticated=True)
 
 parser = slimSMTP.Parser(
 	expectations=[
-		slimSMTP.Command(string='ehlo', handler=slimSMTP.EHLO),
-		slimSMTP.Command(string='quit', handler=slimSMTP.QUIT)
+		slimSMTP.EHLO,
+		slimSMTP.QUIT
 	]
 )
 

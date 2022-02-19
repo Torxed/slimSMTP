@@ -5,3 +5,4 @@ from ..realms import Realm
 class Session(pydantic.BaseModel):
 	addr: str
 	port: int
+	authenticated: bool = False

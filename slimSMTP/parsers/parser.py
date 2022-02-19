@@ -1,9 +1,8 @@
 import pydantic
-from typing import List
-from .command import Command
+from typing import List, Any
 
 class Parser(pydantic.BaseModel):
-	expectations: List[Command]
+	expectations: List[Any]
 
 	def parse(self, cmd_data):
 		for cmd_handler in self.expectations:
