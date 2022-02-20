@@ -11,7 +11,8 @@ def test_parser():
 	)
 
 	server = slimSMTP.Server(configuration)
-	session = slimSMTP.Client(parent=server, socket=socket.socket(), address=('127.0.0.1', 8950))
+	client = slimSMTP.Client(parent=server, socket=socket.socket(), fileno=1, address=('127.0.0.1', 8950))
+	server.clients[1] = client
 
 	parser = slimSMTP.Parser(
 		expectations=[
@@ -24,7 +25,7 @@ def test_parser():
 			slimSMTP.CMD_DATA(
 				data=b'EHLO <domain>\r\n',
 				realms=configuration.realms,
-				session=session
+				session=client
 			)
 		):
 

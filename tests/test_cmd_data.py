@@ -11,7 +11,7 @@ def test_cmd_data():
 	)
 
 	server = slimSMTP.Server(configuration)
-	session = slimSMTP.Client(parent=server, socket=socket.socket(), address=('127.0.0.1', 8950))
+	session = slimSMTP.Client(parent=server, socket=socket.socket(), fileno=1, address=('127.0.0.1', 8950))
 
 	slimSMTP.CMD_DATA(
 		data=b'EHLO <domain>\r\n',
