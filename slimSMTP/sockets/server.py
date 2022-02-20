@@ -17,6 +17,7 @@ class Server:
 
 	def poll(self, timeout = None):
 		from .clients import Client
+		from ..mail.spam import is_spammer
 
 		if not timeout:
 			timeout = self.so_timeout
@@ -26,6 +27,10 @@ class Server:
 				continue
 
 			client_socket, client_addr = self.socket.accept()
+
+			if is_spammer(client_addr[0]):
+				client_socket.close()
+				continue
 
 			self.clients[client_socket.fileno()] = Client(
 				parent = self,

@@ -11,3 +11,8 @@ from .sockets import (
 	Server,
 	Client
 )
+from .mail import (
+	Mail,
+	spammer,
+	is_spammer
+)
