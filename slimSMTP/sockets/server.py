@@ -27,7 +27,9 @@ class Server:
 
 	def process_idle_connections(self):
 		time_check = time.time()
-		for client_fileno, client in self.clients.items():
+		# TODO: Might be more memory efficient to not convert .items() to list()
+		# but that would mean we'd have to clean up any closed clients here after the loop
+		for client_fileno, client in list(self.clients.items()):
 			if client.get_last_recieve() is None or time_check - client.get_last_recieve() > self.configuration.hanging_timeouts:
 				log(f"Client({client}) was idle too long: {self.configuration.hanging_timeouts}", level=logging.DEBUG, fg="yellow")
 				client.close()
