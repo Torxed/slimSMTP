@@ -102,15 +102,25 @@ class MAIL_SESSION:
 
 	def respond(obj :CMD_DATA):
 		if obj.data == '.':
-			yield b'250 Ok: Queued!\r\n'
+			if obj.session.parent.configuration.storage.store_email(obj.session):
+				yield b'250 Ok: Queued!\r\n'
 
-			obj.session.set_parser(
-				Parser(
-					expectations=[
-						QUIT
-					]
+				obj.session.set_parser(
+					Parser(
+						expectations=[
+							QUIT
+						]
+					)
 				)
-			)
+			else:
+				obj.session.set_parser(
+					Parser(
+						expectations=[
+							QUIT
+						]
+					)
+				)
+				return None
 		else:
 			obj.session.mail.add_body(obj.data)
 
@@ -148,7 +158,7 @@ class EHLO:
 		supports = [
 			obj.realms[0].fqdn,
 			'PIPELINING',
-			'SIZE 61440000',
+			'SIZE 10485760',
 			'STARTTLS',
 			'ENHANCEDSTATUSCODES',
 			'8BITMIME'

@@ -18,3 +18,4 @@ from .mail import (
 	is_spammer
 )
 from .logger import log
+from .storage import PostgreSQL

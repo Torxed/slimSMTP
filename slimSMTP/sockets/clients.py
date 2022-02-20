@@ -20,9 +20,9 @@ class Client(pydantic.BaseModel):
 	address :Tuple[str, int]
 	buffert :bytes = b''
 	parser :Optional['Parser'] = None
-	mail: 'Mail' = None
-	last_recieve: float = None
-	authenticated: bool = False
+	mail :'Mail' = None
+	last_recieve :float = None
+	authenticated :bool = False
 
 	def __init__(self, **data):
 		super().__init__(**data)
@@ -36,14 +36,12 @@ class Client(pydantic.BaseModel):
 			self.last_recieve = time.time()
 
 		from ..parsers import Parser, EHLO, QUIT
-		from ..mail import Mail
 		self.parser = Parser(
 			expectations=[
 				EHLO,
 				QUIT
 			]
 		)
-		self.mail = Mail(session=self.parent, client_fd=self.fileno)
 
 	class Config:
 		arbitrary_types_allowed = True
@@ -104,11 +102,14 @@ class Client(pydantic.BaseModel):
 
 			self.set_buffert(self.buffert[first_linebreak+2:])
 
-			return CMD_DATA(
-				data=data,
-				realms=self.parent.configuration.realms,
-				session=self
-			)
+			try:
+				return CMD_DATA(
+					data=data,
+					realms=self.parent.configuration.realms,
+					session=self
+				)
+			except pydantic.error_wrappers.ValidationError:
+				self.close()
 
 
 	def parse(self, data :'CMD_DATA'):

@@ -1,5 +1,5 @@
 import pydantic
-from typing import List
+from typing import List, Any, Optional
 from ..realms import Realm
 
 class Configuration(pydantic.BaseModel):
@@ -7,6 +7,7 @@ class Configuration(pydantic.BaseModel):
 	address: str
 	realms: List[Realm]
 	hanging_timeouts :float = 10.0 # Global timeout for mail clients
+	storage :Optional[Any] = None
 	valid_top_domains :List[str] = [
 		'local', 'localdomain', 'domain', 'home', 'host', 'corp', # Local TLDs
 		'aaa', 'aarp', 'abarth', 'abb', 'abbott', 'abbvie', 'abc', 'able',

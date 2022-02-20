@@ -9,6 +9,7 @@ from ..logger import log
 class Mail(BaseModel):
 	session :Server
 	client_fd :int
+	transaction_id :int
 	sender :str = ''
 	recipients :List[str] = []
 	body :str = ''

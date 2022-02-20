@@ -39,6 +39,7 @@ class Server:
 	def poll(self, timeout = None):
 		from .clients import Client
 		from ..mail.spam import is_spammer
+		from ..mail import Mail
 
 		if not timeout:
 			timeout = self.so_timeout
@@ -54,11 +55,20 @@ class Server:
 				client_socket.close()
 				continue
 
+			from ..parsers import Parser
+			from ..mail import Mail
+			Client.update_forward_refs(Parser=Parser, Mail=Mail)
+
 			self.clients[client_fileno] = Client(
 				parent = self,
 				socket = client_socket,
 				fileno = client_fileno,
-				address = client_addr
+				address = client_addr,
+				mail = Mail(
+					session = self,
+					client_fd = client_fileno,
+					transaction_id = self.configuration.storage.begin_transaction(client_addr)
+				)
 			)
 
 			if client_socket.fileno() != -1:
