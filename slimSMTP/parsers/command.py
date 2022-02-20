@@ -170,7 +170,9 @@ class EHLO:
 			else:
 				response += bytes(f"250 {support}\r\n", 'UTF-8')
 
+
 		yield response
+		print('Responded with:', response)
 
 		obj.session.set_parser(
 			Parser(
@@ -193,15 +195,6 @@ class STARTTLS:
 
 	def respond(obj :CMD_DATA):
 		yield b'220 2.0.0 Ready to start TLS\r\n'
-
-		obj.session.set_parser(
-			Parser(
-				expectations=[
-					EHLO,
-					QUIT
-				]
-			)
-		)
 
 		import ssl
 		ssl_context = ssl.SSLContext(protocol=obj.session.parent.configuration.tls_protocol)
@@ -232,6 +225,15 @@ class STARTTLS:
 				)
 			)
 			return None
+
+		obj.session.set_parser(
+			Parser(
+				expectations=[
+					EHLO,
+					QUIT
+				]
+			)
+		)
 
 	def handle(obj :CMD_DATA):
 		for result in STARTTLS.respond(obj):
