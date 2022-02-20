@@ -1,7 +1,7 @@
 from typing import Optional, List
 from pydantic import BaseModel
 from ..sockets import Server
-from .spam import validate_email_address, get_mail_servers
+from .spam import validate_email_address, get_mail_servers, ip_in_spf
 from ..exceptions import InvalidSender, InvalidAddress
 
 class Mail(BaseModel):
