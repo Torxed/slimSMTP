@@ -77,6 +77,8 @@ class Client(pydantic.BaseModel):
 			except FileNotFoundError:
 				# Not registered yet, so that's fine
 				pass
+
+			del(self.parent.clients[self.socket.fileno()])
 			self.socket.close()
 
 		return None

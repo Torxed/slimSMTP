@@ -27,19 +27,12 @@ class Server:
 
 	def process_idle_connections(self):
 		time_check = time.time()
-		delete_clients = []
 		for client_fileno, client in self.clients.items():
 			if client.get_last_recieve() is None or time_check - client.get_last_recieve() > self.configuration.hanging_timeouts:
 				log(f"Client({client}) was idle too long: {self.configuration.hanging_timeouts}", level=logging.DEBUG, fg="yellow")
 				client.close()
-				delete_clients.append(client_fileno)
 
 				yield client
-
-		for fileno in delete_clients:
-			if self.clients[fileno].socket.fileno() != -1:
-				self.epoll.unregister(fileno)
-			del(self.clients[fileno])
 
 	def poll(self, timeout = None):
 		from .clients import Client
