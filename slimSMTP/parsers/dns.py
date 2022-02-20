@@ -1,6 +1,7 @@
 import re
 import shlex
 import ipaddress
+import dns.resolver
 from ..exceptions import SPFError
 
 class SPF:
