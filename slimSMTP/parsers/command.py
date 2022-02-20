@@ -181,7 +181,6 @@ class EHLO:
 				]
 			)
 		)
-		print(obj.session.parent.clients[obj.session.fileno].parser)
 
 	def handle(obj :CMD_DATA):
 		for result in EHLO.respond(obj):
@@ -215,14 +214,24 @@ class STARTTLS:
 		for ca in obj.session.parent.configuration.tls_certificate_authorities:
 			ssl_context.load_verify_locations(str(ca))
 
-		obj.session.parent.clients[obj.session.fileno].socket = ssl_context.wrap_socket(
-			obj.session.parent.clients[obj.session.fileno].socket,
-			server_side=True,
-			do_handshake_on_connect=True,
-			suppress_ragged_eofs=False
-		)
-		obj.session.parent.clients[obj.session.fileno].buffert = b''
-		obj.session.parent.clients[obj.session.fileno].socket.send(bytes(f"220 {obj.session.parent.configuration.realms[0].fqdn} ESMTP\r\n", "UTF-8"))
+		try:
+			obj.session.parent.clients[obj.session.fileno].socket = ssl_context.wrap_socket(
+				obj.session.parent.clients[obj.session.fileno].socket,
+				server_side=True,
+				do_handshake_on_connect=True,
+				suppress_ragged_eofs=False
+			)
+			obj.session.parent.clients[obj.session.fileno].buffert = b''
+			obj.session.parent.clients[obj.session.fileno].socket.send(bytes(f"220 {obj.session.parent.configuration.realms[0].fqdn} ESMTP\r\n", "UTF-8"))
+		except ssl.SSLError:
+			obj.session.set_parser(
+				Parser(
+					expectations=[
+						QUIT
+					]
+				)
+			)
+			return None
 
 	def handle(obj :CMD_DATA):
 		for result in STARTTLS.respond(obj):
