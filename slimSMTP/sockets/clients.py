@@ -96,8 +96,6 @@ class Client(pydantic.BaseModel):
 			except Exception as err:
 				return self.close()
 
-		print(self.buffert)
-
 		if b'\r\n' in self.buffert:
 			first_linebreak = self.get_buffert().find(b'\r\n')
 			data = self.get_slice(0, first_linebreak)

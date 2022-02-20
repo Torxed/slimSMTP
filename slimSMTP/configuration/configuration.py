@@ -1,5 +1,7 @@
 import pydantic
-from typing import List, Any, Optional
+import ssl
+import pathlib
+from typing import List, Any, Optional, Union
 from ..realms import Realm
 from ..storage import Memory
 
@@ -9,6 +11,10 @@ class Configuration(pydantic.BaseModel):
 	realms: List[Realm]
 	hanging_timeouts :float = 10.0 # Global timeout for mail clients
 	storage :Optional[Any] = Memory()
+	tls_key :Optional[pathlib.Path] = None
+	tls_cert :Optional[pathlib.Path] = None
+	tls_protocol :Union[type(ssl.PROTOCOL_TLSv1_1), type(ssl.PROTOCOL_TLSv1_2), None] = None
+	tls_certificate_authorities :List[pathlib.Path] = []
 	valid_top_domains :List[str] = [
 		'local', 'localdomain', 'domain', 'home', 'host', 'corp', # Local TLDs
 		'aaa', 'aarp', 'abarth', 'abb', 'abbott', 'abbvie', 'abc', 'able',
@@ -29,7 +35,7 @@ class Configuration(pydantic.BaseModel):
 		'bayern', 'bb', 'bbc', 'bbt', 'bbva', 'bcg', 'bcn', 'bd', 'be', 'beats',
 		'beauty', 'beer', 'bentley', 'berlin', 'best', 'bestbuy', 'bet', 'bf',
 		'bg', 'bh', 'bharti', 'bi', 'bible', 'bid', 'bike', 'bing', 'bingo',
-		'bio', 'biz', 'bj', 'black', 'blackfriday', 'blockbuster', 'blog',
+		'boi', 'biz', 'bj', 'black', 'blackfriday', 'blockbuster', 'blog',
 		'bloomberg', 'blue', 'bm', 'bms', 'bmw', 'bn', 'bnpparibas', 'bo',
 		'boats', 'boehringer', 'bofa', 'bom', 'bond', 'boo', 'book', 'booking',
 		'bosch', 'bostik', 'boston', 'bot', 'boutique', 'box', 'br', 'bradesco',
@@ -198,3 +204,6 @@ class Configuration(pydantic.BaseModel):
 		'网', '通', '臺灣', '基', '谷歌', '物', '通販', '集', '電訊盈科', '利浦', '食品',
 		'餐', '香格里拉', '香港'
 	]
+
+	class Config:
+		arbitrary_types_allowed = True

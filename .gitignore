@@ -3,3 +3,6 @@
 /test*.py
 /*.txt
 /example.py
+/*.pem
+/*.crt
+/*.key
