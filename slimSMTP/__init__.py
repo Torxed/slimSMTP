@@ -16,3 +16,4 @@ from .mail import (
 	spammer,
 	is_spammer
 )
+from .logger import log

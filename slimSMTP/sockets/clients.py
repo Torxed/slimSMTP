@@ -1,6 +1,7 @@
 import pydantic
 import socket
 import logging
+import time
 from typing import Tuple, Optional, TYPE_CHECKING
 from .server import Server
 from .sockets import EPOLLIN
@@ -19,10 +20,16 @@ class Client(pydantic.BaseModel):
 	buffert :bytes = b''
 	parser :Optional['Parser'] = None
 	mail: 'Mail' = None
+	last_recieve: float = time.time()
 
 	def __init__(self, **data):
-		data['socket'].send(bytes(f"220 {data['parent'].configuration.realms[0].fqdn} ESMTP\r\n", "UTF-8"))
 		super().__init__(**data)
+
+		try:
+			data['socket'].send(bytes(f"220 {data['parent'].configuration.realms[0].fqdn} ESMTP\r\n", "UTF-8"))
+		except BrokenPipeError:
+			return self.close()
+
 
 		from ..parsers import Parser, EHLO, QUIT
 		from ..mail import Mail
@@ -32,34 +39,78 @@ class Client(pydantic.BaseModel):
 				QUIT
 			]
 		)
-		self.mail = Mail(session=self)
+		self.mail = Mail(session=self.parent, client_fd=self.socket.fileno())
 
 	class Config:
 		arbitrary_types_allowed = True
 
 	def set_parser(self, parser :'Parser'):
-		self.parent.clients[self.socket.fileno()].parser = parser
+		if self.socket.fileno() != -1:
+			self.parent.clients[self.socket.fileno()].parser = parser
+
+	def set_buffert(self, new_buffert :bytes):
+		if self.socket.fileno() != -1:
+			self.parent.clients[self.socket.fileno()].buffert = new_buffert
+
+	def get_buffert(self):
+		if self.socket.fileno() != -1:
+			return self.parent.clients[self.socket.fileno()].buffert
+		return b''
+
+	def get_slice(self, start, stop):
+		if self.socket.fileno() != -1:
+			return self.parent.clients[self.socket.fileno()].buffert[start:stop]
+		return b''
+
+	def get_last_recieve(self):
+		if self.socket.fileno() != -1:
+			return self.parent.clients[self.socket.fileno()].last_recieve
+
+	def set_last_recieve(self, value):
+		if self.socket.fileno() != -1:
+			self.parent.clients[self.socket.fileno()].last_recieve = value
 
 	def close(self):
-		self.parent.epoll.unregister(self.socket.fileno())
-		self.socket.close()
+		if self.socket.fileno() != -1:
+			try:
+				self.parent.epoll.unregister(self.socket.fileno())
+			except FileNotFoundError:
+				# Not registered yet, so that's fine
+				pass
+			self.socket.close()
+
+		return None
 
 	def get_data(self):
 		from ..parsers import CMD_DATA
 
+		if self.socket.fileno() == -1:
+			return None
+
 		if (self.socket.fileno(), EPOLLIN) in self.parent.epoll.poll(self.parent.so_timeout):
-			self.buffert += self.socket.recv(8192)
+			try:
+				new_data = self.socket.recv(8192)
+
+				if len(new_data) == 0:
+					return self.close()
+
+				self.buffert += new_data
+				self.set_last_recieve(time.time())
+			except Exception as err:
+				return self.close()
 
 		if b'\r\n' in self.buffert:
-			first_linebreak = self.buffert.find(b'\r\n')
-			data = self.buffert[:first_linebreak]
-			self.buffert = self.buffert[first_linebreak+2:]
+			first_linebreak = self.get_buffert().find(b'\r\n')
+			data = self.get_slice(0, first_linebreak)
+
+			self.set_buffert(self.buffert[first_linebreak+2:])
 
 			return CMD_DATA(
 				data=data,
 				realms=self.parent.configuration.realms,
 				session=self
 			)
+
 
 	def parse(self, data :'CMD_DATA'):
 		try:

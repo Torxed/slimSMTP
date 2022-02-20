@@ -6,6 +6,7 @@ class Configuration(pydantic.BaseModel):
 	port: int
 	address: str
 	realms: List[Realm]
+	hanging_timeouts :float = 30.0
 	valid_top_domains :List[str] = [
 		'local', 'localdomain', 'domain', 'home', 'host', 'corp', # Local TLDs
 		'aaa', 'aarp', 'abarth', 'abb', 'abbott', 'abbvie', 'abc', 'able',

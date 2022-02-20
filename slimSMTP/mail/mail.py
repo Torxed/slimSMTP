@@ -1,21 +1,25 @@
 from typing import Optional, List
 from pydantic import BaseModel
-from ..sockets import Client
+from ..sockets import Server
 from .spam import validate_email_address, get_mail_servers
 from ..exceptions import InvalidSender, InvalidAddress
 
 class Mail(BaseModel):
-	session :Client
+	session :Server
+	client_fd :int
 	sender :str = ''
 	recipients :List[str] = []
 	body :str = ''
 
+	class Config:
+		arbitrary_types_allowed = True
+
 	def add_sender(self, who):
-		validate_email_address(who, self.session.parent.configuration)
+		validate_email_address(who, self.session.configuration)
 		domain_of_sender = who[who.find('@')+1:].strip()
 
 		allowed_sender = True
-		for realm in self.session.parent.configuration.realms:
+		for realm in self.session.configuration.realms:
 			if realm.name == domain_of_sender:
 				allowed_sender = False
 				break
@@ -25,7 +29,7 @@ class Mail(BaseModel):
 
 		allowed_sender = False
 		for ip in get_mail_servers(domain_of_sender):
-			if ip == self.session.address[0]:
+			if ip == self.session.clients[self.client_fd].address[0]:
 				allowed_sender = True
 				break
 
@@ -35,7 +39,7 @@ class Mail(BaseModel):
 		self.sender = who
 
 	def add_recipient(self, who):
-		validate_email_address(who, self.session.parent.configuration)
+		validate_email_address(who, self.session.configuration)
 
 		self.recipients.append(who)
 
