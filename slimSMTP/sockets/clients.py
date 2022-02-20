@@ -20,7 +20,7 @@ class Client(pydantic.BaseModel):
 	buffert :bytes = b''
 	parser :Optional['Parser'] = None
 	mail: 'Mail' = None
-	last_recieve: float = time.time()
+	last_recieve: float = None
 
 	def __init__(self, **data):
 		super().__init__(**data)
@@ -30,6 +30,8 @@ class Client(pydantic.BaseModel):
 		except BrokenPipeError:
 			return self.close()
 
+		if not self.last_recieve:
+			self.last_recieve = time.time()
 
 		from ..parsers import Parser, EHLO, QUIT
 		from ..mail import Mail
