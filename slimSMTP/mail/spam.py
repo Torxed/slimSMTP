@@ -5,7 +5,7 @@ import logging
 import socket
 import ipaddress
 from ..logger import log
-from ..exceptions import SPFError
+from ..exceptions import SPFError, InvalidAddress
 from ..parsers.dns import SPF
 
 def validate_top_level_domain(domain, configuration):
@@ -48,14 +48,17 @@ def get_mail_servers(domain):
 
 def ip_in_spf(ip, domain):
 	found_spf = False
-	for record in dns.resolver.resolve(domain, 'TXT', search=True):
-		try:
-			for subnet in SPF(record.to_text()).hosts:
-				found_spf = True
-				if ipaddress.ip_address(ip) in subnet:
-					return True
-		except SPFError:
-			pass
+	try:
+		for record in dns.resolver.resolve(domain, 'TXT', search=True):
+			try:
+				for subnet in SPF(record.to_text()).hosts:
+					found_spf = True
+					if ipaddress.ip_address(ip) in subnet:
+						return True
+			except SPFError:
+				pass
+	except dns.resolver.NXDOMAIN:
+		return None
 
 	if found_spf:
 		return False

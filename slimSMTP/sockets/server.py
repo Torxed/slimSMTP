@@ -48,18 +48,21 @@ class Server:
 				continue
 
 			client_socket, client_addr = self.socket.accept()
+			client_fileno = client_socket.fileno()
 
 			if is_spammer(client_addr[0]):
 				client_socket.close()
 				continue
 
-			self.clients[client_socket.fileno()] = Client(
+			self.clients[client_fileno] = Client(
 				parent = self,
 				socket = client_socket,
+				fileno = client_fileno,
 				address = client_addr
 			)
 
-			self.epoll.register(client_socket.fileno(), EPOLLIN | EPOLLHUP)
+			if client_socket.fileno() != -1:
+				self.epoll.register(client_socket.fileno(), EPOLLIN | EPOLLHUP)
 
 		return True
 

@@ -1,8 +1,10 @@
+import logging
 from typing import Optional, List
 from pydantic import BaseModel
+from .spam import validate_email_address, get_mail_servers, ip_in_spf, spammer
 from ..sockets import Server
-from .spam import validate_email_address, get_mail_servers, ip_in_spf
-from ..exceptions import InvalidSender, InvalidAddress
+from ..exceptions import InvalidSender, InvalidAddress, AuthenticationError
+from ..logger import log
 
 class Mail(BaseModel):
 	session :Server
@@ -44,6 +46,26 @@ class Mail(BaseModel):
 
 	def add_recipient(self, who):
 		validate_email_address(who, self.session.configuration)
+
+		domain_of_recipient = who[who.find('@')+1:].strip()
+
+		internal_domain = False
+		for realm in self.session.configuration.realms:
+			if realm.name == domain_of_recipient:
+				internal_domain = True
+				break
+
+		if not internal_domain and self.session.clients[self.client_fd].authenticated is False:
+			log_message = f"Client({self.session.clients[self.client_fd]}) attempted to send externally without authentication."
+			
+			log(log_message, level=logging.WARNING, fg="red")
+			
+			# If the client tried to send externally, without authentication (which we don't support yet)
+			# then it's definetely a spammer.
+			spammer(self.session.clients[self.client_fd])
+			self.session.clients[self.client_fd].close()
+			
+			raise AuthenticationError(log_message)
 
 		self.recipients.append(who)
 

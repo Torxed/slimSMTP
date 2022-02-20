@@ -16,18 +16,20 @@ if TYPE_CHECKING:
 class Client(pydantic.BaseModel):
 	parent :Server
 	socket :socket.socket
+	fileno :int
 	address :Tuple[str, int]
 	buffert :bytes = b''
 	parser :Optional['Parser'] = None
 	mail: 'Mail' = None
 	last_recieve: float = None
+	authenticated: bool = False
 
 	def __init__(self, **data):
 		super().__init__(**data)
 
 		try:
 			data['socket'].send(bytes(f"220 {data['parent'].configuration.realms[0].fqdn} ESMTP\r\n", "UTF-8"))
-		except BrokenPipeError:
+		except (BrokenPipeError, ConnectionResetError):
 			return self.close()
 
 		if not self.last_recieve:
@@ -41,47 +43,40 @@ class Client(pydantic.BaseModel):
 				QUIT
 			]
 		)
-		self.mail = Mail(session=self.parent, client_fd=self.socket.fileno())
+		self.mail = Mail(session=self.parent, client_fd=self.fileno)
 
 	class Config:
 		arbitrary_types_allowed = True
 
 	def set_parser(self, parser :'Parser'):
-		if self.socket.fileno() != -1:
-			self.parent.clients[self.socket.fileno()].parser = parser
+		self.parent.clients[self.fileno].parser = parser
 
 	def set_buffert(self, new_buffert :bytes):
-		if self.socket.fileno() != -1:
-			self.parent.clients[self.socket.fileno()].buffert = new_buffert
-
-	def get_buffert(self):
-		if self.socket.fileno() != -1:
-			return self.parent.clients[self.socket.fileno()].buffert
-		return b''
-
-	def get_slice(self, start, stop):
-		if self.socket.fileno() != -1:
-			return self.parent.clients[self.socket.fileno()].buffert[start:stop]
-		return b''
-
-	def get_last_recieve(self):
-		if self.socket.fileno() != -1:
-			return self.parent.clients[self.socket.fileno()].last_recieve
+		self.parent.clients[self.fileno].buffert = new_buffert
 
 	def set_last_recieve(self, value):
-		if self.socket.fileno() != -1:
-			self.parent.clients[self.socket.fileno()].last_recieve = value
+		self.parent.clients[self.fileno].last_recieve = value
+
+	def get_buffert(self):
+		return self.parent.clients[self.fileno].buffert
+
+	def get_slice(self, start, stop):
+		return self.parent.clients[self.fileno].buffert[start:stop]
+
+	def get_last_recieve(self):
+		return self.parent.clients[self.fileno].last_recieve
 
 	def close(self):
-		if self.socket.fileno() != -1:
-			try:
-				self.parent.epoll.unregister(self.socket.fileno())
-			except FileNotFoundError:
-				# Not registered yet, so that's fine
-				pass
+		try:
+			self.parent.epoll.unregister(self.fileno)
+		except (FileNotFoundError, OSError):
+			# Not registered yet, so that's fine
+			pass
 
-			del(self.parent.clients[self.socket.fileno()])
-			self.socket.close()
+		if self.fileno in self.parent.clients:
+			del(self.parent.clients[self.fileno])
+
+		self.socket.close()
 
 		return None
 
@@ -91,7 +86,7 @@ class Client(pydantic.BaseModel):
 		if self.socket.fileno() == -1:
 			return None
 
-		if (self.socket.fileno(), EPOLLIN) in self.parent.epoll.poll(self.parent.so_timeout):
+		if (self.fileno, EPOLLIN) in self.parent.epoll.poll(self.parent.so_timeout):
 			try:
 				new_data = self.socket.recv(8192)
 

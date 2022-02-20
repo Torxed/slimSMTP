@@ -2,7 +2,7 @@ import pydantic
 from typing import Callable, List
 from ..realms import Realm
 from ..sockets import Client
-from ..exceptions import AuthenticationError
+from ..exceptions import AuthenticationError, InvalidAddress
 from .parser import Parser
 
 class CMD_DATA(pydantic.BaseModel):
@@ -34,7 +34,17 @@ class MAIL_FROM:
 		return obj.data.lower().startswith('mail from:')
 
 	def respond(obj :CMD_DATA):
-		obj.session.mail.add_sender(obj.data.lower()[10:].strip())
+		try:
+			obj.session.mail.add_sender(obj.data.lower()[10:].strip())
+		except InvalidAddress:
+			obj.session.set_parser(
+				Parser(
+					expectations=[
+						QUIT
+					]
+				)
+			)
+			return None
 
 		yield b'250 Ok\r\n'
 
@@ -57,7 +67,17 @@ class RCPT_TO:
 		return obj.data.lower().startswith('rcpt to:')
 
 	def respond(obj :CMD_DATA):
-		obj.session.mail.add_recipient(obj.data.lower()[8:].strip())
+		try:
+			obj.session.mail.add_recipient(obj.data.lower()[8:].strip())
+		except AuthenticationError:
+			obj.session.set_parser(
+				Parser(
+					expectations=[
+						QUIT
+					]
+				)
+			)
+			return None
 
 		yield b'250 Ok\r\n'
 
