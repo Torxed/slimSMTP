@@ -4,7 +4,8 @@ from .parsers import (
 	Parser,
 	CMD_DATA,
 	EHLO,
-	QUIT
+	QUIT,
+	SPF
 )
 from .sessions import Session
 from .sockets import (

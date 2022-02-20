@@ -3,7 +3,10 @@ import dns.resolver
 import time
 import logging
 import socket
+import ipaddress
 from ..logger import log
+from ..exceptions import SPFError
+from ..parsers.dns import SPF
 
 def validate_top_level_domain(domain, configuration):
 	if domain[:1] == '.':
@@ -42,6 +45,22 @@ def get_mail_servers(domain):
 		ip_record = socket.gethostbyname(domain)
 		log(f"Found IP using simple forward DNS lookup using socket library: {ip_record}", level=logging.DEBUG)
 		yield ip_record
+
+def ip_in_spf(ip, domain):
+	found_spf = False
+	for record in dns.resolver.resolve(domain, 'TXT', search=True):
+		try:
+			for subnet in SPF(record.to_text()).hosts:
+				found_spf = True
+				if ipaddress.ip_address(ip) in subnet:
+					return True
+		except SPFError:
+			pass
+
+	if found_spf:
+		return False
+	else:
+		return None
 
 spam_assasin = {}
 def spammer(client):

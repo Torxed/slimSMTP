@@ -6,3 +6,6 @@ class InvalidSender(BaseException):
 
 class InvalidAddress(BaseException):
 	pass
+
+class SPFError(BaseException):
+	pass
