@@ -1,5 +1,7 @@
-import socket
+import ssl
 import slimSMTP
+
+# openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365 -nodes
 
 configuration = slimSMTP.Configuration(
 	port=25,
@@ -7,7 +9,11 @@ configuration = slimSMTP.Configuration(
 	realms=[
 		slimSMTP.Realm(name='test.domain')
 	],
-	storage=slimSMTP.PostgreSQL(database='email', server='127.0.0.1', username='slimsmtp', password='i haz password')
+	storage=slimSMTP.PostgreSQL(database='email', server='127.0.0.1', username='slimsmtp', password='i haz password'),
+	tls_key='./key.pem',
+	tls_cert='./cert.pem',
+	tls_protocol=ssl.PROTOCOL_TLSv1_2,
+	tls_certificate_authorities=['/home/username/self_signing_ca.pem']
 )
 
 server = slimSMTP.Server(configuration)
