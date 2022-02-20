@@ -8,6 +8,7 @@ Requirements
 
  * Python3.9+
  * python-dnspython
+ * python-pydantic
  * python-systemd *(Optional)*
 
 Installation
