@@ -1,4 +1,5 @@
 import pydantic
+import socket
 from typing import Callable, List
 from ..realms import Realm
 from ..sockets import Client
@@ -158,10 +159,11 @@ class EHLO:
 			obj.realms[0].fqdn,
 			'PIPELINING',
 			'SIZE 10485760',
-			'STARTTLS',
 			'ENHANCEDSTATUSCODES',
 			'8BITMIME'
 		]
+		if type(obj.session.socket) == type(socket.socket()):
+			supports.append('STARTTLS')
 
 		response = b''
 		for index, support in enumerate(supports):
@@ -172,15 +174,18 @@ class EHLO:
 
 
 		yield response
-		print('Responded with:', response)
+
+		expectation_list = [
+			MAIL_FROM,
+			QUIT
+		]
+
+		if type(obj.session.socket) == type(socket.socket()):
+			expectation_list.append(STARTTLS)
 
 		obj.session.set_parser(
 			Parser(
-				expectations=[
-					STARTTLS,
-					MAIL_FROM,
-					QUIT
-				]
+				expectations=expectation_list
 			)
 		)
 
