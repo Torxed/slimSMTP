@@ -34,7 +34,7 @@ class Mail(BaseModel):
 				break
 
 		if not allowed_sender:
-			raise InvalidSender(f"Client is not allowed to send e-mails from {domain_of_sender} on IP {self.session.address[0]} due to MX records")
+			raise InvalidSender(f"Client is not allowed to send e-mails from {domain_of_sender} on IP {self.session.clients[self.client_fd].address[0]} due to MX records")
 
 		self.sender = who
 
