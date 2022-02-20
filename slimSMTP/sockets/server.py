@@ -29,7 +29,7 @@ class Server:
 		time_check = time.time()
 		for client_fileno, client in self.clients.items():
 			if client.get_last_recieve() is None or time_check - client.get_last_recieve() > self.configuration.hanging_timeouts:
-				log(f"Client({client}) was idle too long", level=logging.DEBUG, fg="yellow")
+				log(f"Client({client}) was idle too long: {time_check - client.get_last_recieve()}", level=logging.DEBUG, fg="yellow")
 				client.close()
 
 				yield client
