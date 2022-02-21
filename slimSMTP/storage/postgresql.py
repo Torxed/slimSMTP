@@ -46,7 +46,6 @@ class PostgreSQL(pydantic.BaseModel):
 
 	def begin_transaction(self, address):
 		from ..logger import log
-		log(f"Gave {address} a transactional ID in the email transaction table.", level=logging.DEBUG, fg="cyan")
 
 		with self.session.cursor() as cursor:
 			cursor.execute(
@@ -57,6 +56,7 @@ class PostgreSQL(pydantic.BaseModel):
 
 			self.session.commit()
 
+		log(f"Gave {address} a transactional ID of: {transaction_id}", level=logging.DEBUG, fg="cyan")
 		return transaction_id
 
 	def set_transaction_as_secure(self, transaction_id):
