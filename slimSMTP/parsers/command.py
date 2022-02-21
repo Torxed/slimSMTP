@@ -35,8 +35,9 @@ class MAIL_FROM:
 		return obj.data.lower().startswith('mail from:')
 
 	def respond(obj :CMD_DATA):
+		from ..mail.helpers import clean_email
 		try:
-			obj.session.mail.add_sender(obj.data.lower()[10:].strip())
+			obj.session.mail.add_sender(clean_email(obj.data.lower()[10:].strip()))
 		except InvalidAddress:
 			obj.session.set_parser(
 				Parser(
@@ -68,8 +69,9 @@ class RCPT_TO:
 		return obj.data.lower().startswith('rcpt to:')
 
 	def respond(obj :CMD_DATA):
+		from ..mail.helpers import clean_email
 		try:
-			obj.session.mail.add_recipient(obj.data.lower()[8:].strip())
+			obj.session.mail.add_recipient(clean_email(obj.data.lower()[8:].strip()))
 		except AuthenticationError:
 			obj.session.set_parser(
 				Parser(
