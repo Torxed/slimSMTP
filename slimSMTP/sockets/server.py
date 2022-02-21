@@ -85,7 +85,7 @@ class Server:
 			filter_filenumbers.append(fileno)
 			yield self.clients[fileno]
 
-		for fileno in self.clients:
+		for fileno in list(self.clients.keys()):
 			if fileno in filter_filenumbers:
 				continue
 
