@@ -155,6 +155,7 @@ class MAIL_SESSION:
 					)
 				)
 			else:
+				log(f"Could not deliver email", level=logging.ERROR, fg="red")
 				obj.session.set_parser(
 					Parser(
 						expectations=[
