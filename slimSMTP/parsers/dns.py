@@ -25,6 +25,13 @@ class SPF:
 								self.hosts.append(host)
 						except SPFError:
 							pass
+				elif key == 'redirect':
+					for record in dns.resolver.resolve(value, 'TXT', search=True):
+						try:
+							for host in SPF(record.to_text()).hosts:
+								self.hosts.append(host)
+						except SPFError:
+							pass
 				elif key == 'ip4':
 					if not '/' in value:
 						value += '/32'
