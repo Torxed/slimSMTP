@@ -1,5 +1,4 @@
 import pydantic
-import socket
 import logging
 import ssl
 import base64
@@ -250,7 +249,7 @@ class PLAIN_CREDENTIALS:
 			username, password = base64.b64decode(credentials).strip(b'\x00').split(b'\x00', 1)
 			username = username.decode('UTF-8')
 			password = password.decode('UTF-8')
-			#password = base64.b64encode(password)
+			# password = base64.b64encode(password)
 
 			pam = pamd()
 			if pam.authenticate(username, password):
@@ -280,7 +279,6 @@ class PLAIN_CREDENTIALS:
 
 		# yield b'535 5.7.8 Error: authentication failed.\r\n'
 
-
 	@staticmethod
 	def handle(obj :CMD_DATA) -> Iterator[bytes]:
 		for result in PLAIN_CREDENTIALS.respond(obj):
@@ -301,7 +299,7 @@ class AUTH_PLAIN:
 			username, password = base64.b64decode(credentials).strip(b'\x00').split(b'\x00', 1)
 			username = username.decode('UTF-8')
 			password = password.decode('UTF-8')
-			#password = base64.b64encode(password)
+			# password = base64.b64encode(password)
 
 			pam = pamd()
 			if pam.authenticate(username, password):
@@ -327,9 +325,8 @@ class AUTH_PLAIN:
 				# 	)
 				# )
 				# yield b'535 5.7.8 Error: authentication failed.\r\n'
-				
-				obj.session.spammer(f"Client(address={obj.session.address}) failed authentication as {username}")
 
+				obj.session.spammer(f"Client(address={obj.session.address}) failed authentication as {username}")
 
 		else:
 			obj.session.set_parser(
