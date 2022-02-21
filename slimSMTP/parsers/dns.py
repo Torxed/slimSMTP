@@ -36,7 +36,7 @@ class SPF:
 					except SPFError:
 						pass
 			elif key == 'ip4':
-				if not '/' in value:
+				if '/' not in value:
 					value += '/32'
 
 				self.hosts.append(ipaddress.ip_network(value, False))

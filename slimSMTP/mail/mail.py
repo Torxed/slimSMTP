@@ -1,9 +1,9 @@
 import logging
-from typing import Optional, List
+from typing import List
 from pydantic import BaseModel
 from .spam import validate_email_address, get_mail_servers, ip_in_spf, spammer
 from ..sockets import Server
-from ..exceptions import InvalidSender, InvalidAddress, AuthenticationError
+from ..exceptions import InvalidSender, AuthenticationError
 from ..logger import log
 
 class Mail(BaseModel):
@@ -19,7 +19,7 @@ class Mail(BaseModel):
 
 	def add_sender(self, who :str) -> None:
 		validate_email_address(who, self.session.configuration)
-		domain_of_sender = who[who.find('@')+1:].strip()
+		domain_of_sender = who[who.find('@') + 1:].strip()
 
 		allowed_sender = True
 		for realm in self.session.configuration.realms:
@@ -50,7 +50,7 @@ class Mail(BaseModel):
 		# b'RCPT TO:<anton@archlinux.life>\r\n'
 		validate_email_address(who, self.session.configuration)
 
-		domain_of_recipient = who[who.find('@')+1:].strip()
+		domain_of_recipient = who[who.find('@') + 1:].strip()
 
 		internal_domain = False
 		for realm in self.session.configuration.realms:

@@ -1,7 +1,7 @@
 import pydantic
 import socket
 import logging
-from typing import Callable, List, Any, Iterator
+from typing import List, Iterator
 from .parser import Parser
 from ..realms import Realm
 from ..sockets import Client
@@ -189,16 +189,16 @@ class EHLO:
 			'ENHANCEDSTATUSCODES',
 			'8BITMIME'
 		]
-		if type(obj.session.socket) == type(socket.socket()):
+
+		if isinstance(obj.session.socket, socket.socket):
 			supports.append('STARTTLS')
 
 		response = b''
 		for index, support in enumerate(supports):
-			if index != len(supports)-1:
+			if index != len(supports) - 1:
 				response += bytes(f"250-{support}\r\n", 'UTF-8')
 			else:
 				response += bytes(f"250 {support}\r\n", 'UTF-8')
-
 
 		yield response
 
@@ -207,7 +207,8 @@ class EHLO:
 			QUIT
 		]
 
-		if type(obj.session.socket) == type(socket.socket()):
+		if isinstance(obj.session.socket, socket.socket):
+			# We only add STARTTLS if the endpoint is a socket, not ssl.socket
 			expectation_list.append(STARTTLS)
 
 		obj.session.set_parser(

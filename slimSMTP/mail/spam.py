@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 	from ..configuration import Configuration
 	from ..sockets import Client
 
+spam_assasin = {}
+
 def validate_top_level_domain(domain :str, configuration :Configuration) -> bool:
 	if domain[:1] == '.':
 		domain = domain[1:]
@@ -26,7 +28,7 @@ def validate_email_address(addr :str, configuration :Configuration) -> bool:
 	if (at_char := addr[:64].find('@')) <= 0:
 		raise InvalidAddress(f"Local part in address is to long.")
 
-	if len(addr[at_char:at_char+257]) > 255:
+	if len(addr[at_char:at_char + 257]) > 255:
 		raise InvalidAddress(f"Domain name in address is to long.")
 
 	# Redudant, but shows in a more simplistic term what our limits are.
@@ -77,7 +79,6 @@ def ip_in_spf(ip :str, domain :str) -> Union[bool, None]:
 	else:
 		return None
 
-spam_assasin = {}
 def spammer(client :Client) -> None:
 	spam_assasin[client.address[0]] = time.time()
 

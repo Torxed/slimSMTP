@@ -2,7 +2,7 @@ import pydantic
 import socket
 import logging
 import time
-from typing import Tuple, Optional, TYPE_CHECKING, Type, Union, Dict, cast, Iterator
+from typing import Tuple, Optional, TYPE_CHECKING, Union, Dict, Iterator
 from .server import Server
 from .sockets import EPOLLIN
 from ..exceptions import InvalidSender
@@ -105,6 +105,7 @@ class Client(pydantic.BaseModel):
 				self.buffert += new_data
 				self.set_last_recieve(time.time())
 			except Exception as err:
+				log(f"Unknown exception: {err}", level=logging.DEBUG, fg="yellow")
 				return self.close() # type: ignore
 
 		# print(self.buffert)
@@ -113,7 +114,7 @@ class Client(pydantic.BaseModel):
 			first_linebreak = self.get_buffert().find(b'\r\n')
 			data = self.get_slice(0, first_linebreak)
 
-			self.set_buffert(self.buffert[first_linebreak+2:])
+			self.set_buffert(self.buffert[first_linebreak + 2:])
 
 			try:
 				return CMD_DATA(
@@ -126,7 +127,6 @@ class Client(pydantic.BaseModel):
 
 		return None
 
-
 	def parse(self, data :'CMD_DATA') -> Iterator[bytes]:
 		try:
 			for response in self.parser.parse(data):
@@ -137,7 +137,6 @@ class Client(pydantic.BaseModel):
 			self.close()
 			spammer(self)
 			log(f"Client({self}) is marked as a spammer: {error}", level=logging.WARNING, fg="red")
-
 
 	def respond(self, data :bytes) -> int:
 		return self.socket.send(data)

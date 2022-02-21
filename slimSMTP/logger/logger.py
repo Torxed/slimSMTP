@@ -2,7 +2,6 @@ import logging
 import os
 import sys
 import json
-from pathlib import Path
 from typing import Dict, Union, Optional, cast, Any
 
 from ..parsers.json import JSON
@@ -81,7 +80,7 @@ def log(*args :Any, **kwargs :Union[str, int, Dict[str, Union[str, int]]]) -> No
 	if len(args) and type(args[0]) == dict:
 		args = cast(Any, [json.dumps(args[0], cls=JSON)])
 
-	string = orig_string = ' '.join([str(x) for x in args])
+	string = ' '.join([str(x) for x in args])
 
 	# Attempt to colorize the output if supported
 	# Insert default colors and override with **kwargs

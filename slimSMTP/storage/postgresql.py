@@ -23,7 +23,7 @@ class PostgreSQL(pydantic.BaseModel):
 		except psycopg2.OperationalError:
 			connection = psycopg2.connect(f"dbname=postgres host={self.server} port={self.port} user='{self.username}'")
 			connection.set_session(autocommit=True)
-			connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT);
+			connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
 			with connection.cursor() as cursor:
 				cursor.execute(f"CREATE DATABASE {self.database};")
