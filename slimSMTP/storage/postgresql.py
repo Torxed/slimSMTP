@@ -73,7 +73,7 @@ class PostgreSQL(pydantic.BaseModel):
 	def store_email(self, client):
 		from ..logger import log
 
-		log(f"Storing email from Client(address={client.address})", level=logging.INFO, fg="green")
+		log(f"Storing email from Client(address={client.address}, identity={client.mail.sender}, recipients={client.mail.recipients})", level=logging.INFO, fg="green")
 		with self.session.cursor() as cursor:
 			for recipient in client.mail.recipients:
 				cursor.execute(
