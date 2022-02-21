@@ -45,7 +45,7 @@ class PostgreSQL(pydantic.BaseModel):
 		if self.session:
 			with self.session.cursor() as cursor:
 				cursor.execute(f"CREATE TABLE IF NOT EXISTS emails (id BIGSERIAL PRIMARY KEY, sender VARCHAR(320), recipient VARCHAR(320), data VARCHAR(10485760), secure BOOLEAN, stored TIMESTAMP WITH TIME ZONE DEFAULT now());")
-				cursor.execute(f"CREATE TABLE IF NOT EXISTS transactions (id BIGSERIAL PRIMARY KEY, email BIGINT, ip INET, authenticated BOOLEAN, secure BOOLEAN, connected TIMESTAMP WITH TIME ZONE DEFAULT now());")
+				cursor.execute(f"CREATE TABLE IF NOT EXISTS transactions (id BIGSERIAL PRIMARY KEY, email BIGINT, ip INET, authenticated VARCHAR(255), secure BOOLEAN, connected TIMESTAMP WITH TIME ZONE DEFAULT now());")
 				self.session.commit()
 
 	def begin_transaction(self, address :Tuple[str, int]) -> int:
@@ -55,8 +55,8 @@ class PostgreSQL(pydantic.BaseModel):
 		if self.session:
 			with self.session.cursor() as cursor:
 				cursor.execute(
-					f"INSERT INTO transactions (ip, authenticated, secure) VALUES (%s, %s, %s) RETURNING id;", # nosec
-					(str(address[0]), False, False)
+					f"INSERT INTO transactions (ip, secure) VALUES (%s, %s, %s) RETURNING id;", # nosec
+					(str(address[0]), False)
 				)
 				transaction_id = cursor.fetchone()[0]
 
@@ -65,6 +65,18 @@ class PostgreSQL(pydantic.BaseModel):
 			log(f"Gave {address} a transactional ID of: {transaction_id}", level=logging.DEBUG, fg="cyan")
 
 		return transaction_id
+
+	def set_authenticated_as(self, transaction_id :int, username :str) -> None:
+		from ..logger import log
+
+		if self.session:
+			log(f"Marking transaction {transaction_id} as authenticated (user: {username})", level=logging.DEBUG, fg="green")
+
+			with self.session.cursor() as cursor:
+				cursor.execute(
+					f"UPDATE transactions SET authenticated=%s WHERE id=%s;", # nosec
+					(str(username), int(transaction_id))
+				)
 
 	def set_transaction_as_secure(self, transaction_id :int) -> None:
 		from ..logger import log
