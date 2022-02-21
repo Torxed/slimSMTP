@@ -1,10 +1,12 @@
 import pydantic
 import socket
+import logging
 from typing import Callable, List
+from .parser import Parser
 from ..realms import Realm
 from ..sockets import Client
 from ..exceptions import AuthenticationError, InvalidAddress
-from .parser import Parser
+from ..logger import log
 
 class CMD_DATA(pydantic.BaseModel):
 	data: str
@@ -35,6 +37,7 @@ class MAIL_FROM:
 		return obj.data.lower().startswith('mail from:')
 
 	def respond(obj :CMD_DATA):
+		log(f"Processing: MAIL_FROM", level=logging.DEBUG, fg="grey")
 		from ..mail.helpers import clean_email
 		try:
 			obj.session.mail.add_sender(clean_email(obj.data.lower()[10:].strip()))
@@ -69,6 +72,8 @@ class RCPT_TO:
 		return obj.data.lower().startswith('rcpt to:')
 
 	def respond(obj :CMD_DATA):
+		log(f"Processing: RCPT_TO", level=logging.DEBUG, fg="grey")
+
 		from ..mail.helpers import clean_email
 		try:
 			obj.session.mail.add_recipient(clean_email(obj.data.lower()[8:].strip()))
@@ -104,6 +109,7 @@ class MAIL_SESSION:
 		return True
 
 	def respond(obj :CMD_DATA):
+		log(f"Processing: DATA (transit)", level=logging.DEBUG, fg="grey")
 		if obj.data == '.':
 			if obj.session.parent.configuration.storage.store_email(obj.session):
 				yield b'250 Ok: Queued!\r\n'
@@ -137,6 +143,8 @@ class DATA:
 		return obj.data.lower().startswith('data')
 
 	def respond(obj :CMD_DATA):
+		log(f"Processing: DATA", level=logging.DEBUG, fg="grey")
+
 		yield b'354 End data with <CR><LF>.<CR><LF>\r\n'
 
 		obj.session.set_parser(
@@ -157,6 +165,8 @@ class EHLO:
 		return obj.data.lower().startswith('ehlo')
 
 	def respond(obj :CMD_DATA):
+		log(f"Processing: EHLO", level=logging.DEBUG, fg="grey")
+
 		supports = [
 			obj.realms[0].fqdn,
 			'PIPELINING',
@@ -201,6 +211,7 @@ class STARTTLS:
 		return obj.data.lower().startswith('starttls')
 
 	def respond(obj :CMD_DATA):
+		log(f"Processing: STARTTLS", level=logging.DEBUG, fg="grey")
 		yield b'220 2.0.0 Ready to start TLS\r\n'
 
 		import ssl
@@ -252,6 +263,7 @@ class QUIT:
 		return obj.data.lower().startswith('quit')
 
 	def respond(obj :CMD_DATA):
+		log(f"Processing: QUIT", level=logging.DEBUG, fg="grey")
 		yield b'221 OK\r\n'
 
 	def handle(obj :CMD_DATA):
