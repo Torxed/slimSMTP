@@ -27,21 +27,22 @@ class Mail(BaseModel):
 				internal_domain = True
 				break
 
-		if not internal_domain and self.session.clients[self.client_fd].authenticated is not True:
+		if internal_domain and self.session.clients[self.client_fd].authenticated is not True:
 			raise AuthenticationError(f"Client is not allowed to send on behalf of internal realm {domain_of_sender}")
 
-		if (spf := ip_in_spf(self.session.clients[self.client_fd].address[0], domain_of_sender)) is False:
-			raise InvalidSender(f"Client is not allowed to send e-mails from {domain_of_sender} on IP {self.session.clients[self.client_fd].address[0]} due to SPF records")
-		
-		elif spf is None:
-			allowed_sender = False
-			for ip in get_mail_servers(domain_of_sender):
-				if ip == self.session.clients[self.client_fd].address[0]:
-					allowed_sender = True
-					break
+		if internal_domain is False:
+			if (spf := ip_in_spf(self.session.clients[self.client_fd].address[0], domain_of_sender)) is False:
+				raise InvalidSender(f"Client is not allowed to send e-mails from {domain_of_sender} on IP {self.session.clients[self.client_fd].address[0]} due to SPF records")
+			
+			elif spf is None:
+				allowed_sender = False
+				for ip in get_mail_servers(domain_of_sender):
+					if ip == self.session.clients[self.client_fd].address[0]:
+						allowed_sender = True
+						break
 
-			if not allowed_sender:
-				raise InvalidSender(f"Client is not allowed to send e-mails from {domain_of_sender} on IP {self.session.clients[self.client_fd].address[0]} due to MX records")
+				if not allowed_sender:
+					raise InvalidSender(f"Client is not allowed to send e-mails from {domain_of_sender} on IP {self.session.clients[self.client_fd].address[0]} due to MX records")
 
 		self.sender = who
 
