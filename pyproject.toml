@@ -13,7 +13,8 @@ dependencies = [
 	"dnspython",
 	"pydantic",
 	"psycopg2-binary",
-	"systemd"
+	"systemd",
+	"python-pam"
 ]
 
 [project.urls]
@@ -51,6 +52,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "systemd.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pam.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

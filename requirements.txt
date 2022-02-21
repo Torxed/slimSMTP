@@ -1,3 +1,4 @@
 dnspython
 pydantic
 psycopg2-binary
+python-pam
