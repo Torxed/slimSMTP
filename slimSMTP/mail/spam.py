@@ -53,9 +53,14 @@ def get_mail_servers(domain :str) -> Iterator[str]:
 				log(f"Resolved mail server to IP: {ip_record.to_text()}", level=logging.DEBUG)
 				yield str(ip_record.to_text())
 	except dns.resolver.NXDOMAIN:
-		ip_record = socket.gethostbyname(domain)
-		log(f"Found IP using simple forward DNS lookup using socket library: {ip_record}", level=logging.DEBUG)
-		yield str(ip_record)
+		try:
+			ip_record = socket.gethostbyname(domain)
+			log(f"Found IP using simple forward DNS lookup using socket library: {ip_record}", level=logging.DEBUG)
+			yield str(ip_record)
+		except socket.gaierror:
+			pass
+
+	return None
 
 def ip_in_spf(ip :str, domain :str) -> Union[bool, None]:
 	found_spf = False
