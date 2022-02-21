@@ -11,7 +11,7 @@ class Memory(pydantic.BaseModel):
 		self.transaction_serial_id += 1
 		return self.transaction_serial_id - 1
 
-	def store_email(self, client :Client) -> bool:
+	def store_email(self, client :'Client') -> bool:
 		return True
 
 	def set_transaction_as_secure(self, transaction_id :int) -> None:

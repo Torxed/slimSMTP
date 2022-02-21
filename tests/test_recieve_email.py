@@ -2,7 +2,7 @@ def test_recieve_email():
 	import slimSMTP
 
 	configuration = slimSMTP.Configuration(
-		port=9050,
+		port=9053,
 		address='',
 		realms=[
 			slimSMTP.Realm(name='test.domain')
@@ -40,7 +40,7 @@ def test_recieve_email():
 		def run(self):
 			import socket
 			s = socket.socket()
-			s.connect(('127.0.0.1', 9050))
+			s.connect(('127.0.0.1', 9053))
 			
 			if not b'220' in s.recv(8192):
 				exit(1)

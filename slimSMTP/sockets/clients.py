@@ -26,7 +26,11 @@ class Client(pydantic.BaseModel):
 	authenticated :bool = False
 	tls_protection :bool = False
 
-	def __init__(self, **data :Union[Dict[str, Union[Socket, Server]], Server, Socket, int, Tuple[str, int], bytes, 'Parser', 'Mail', float, bool]):
+	def __init__(self, **data :Union[Dict[str, Union['Socket', Server]], Server, 'Socket', int, Tuple[str, int], bytes, 'Parser', 'Mail', float, bool]):
+		from ..parsers import Parser
+		from ..mail import Mail
+		Client.update_forward_refs(Parser=Parser, Mail=Mail)
+
 		super().__init__(**data)
 
 		if not type(data['socket']) == socket.socket:
@@ -42,14 +46,6 @@ class Client(pydantic.BaseModel):
 
 		if not self.last_recieve:
 			self.last_recieve = time.time()
-
-		from ..parsers import Parser, EHLO, QUIT
-		self.parser = Parser(
-			expectations=[
-				EHLO,
-				QUIT
-			]
-		)
 
 	class Config:
 		arbitrary_types_allowed = True
@@ -89,7 +85,7 @@ class Client(pydantic.BaseModel):
 
 		return None
 
-	def get_data(self) -> Union[CMD_DATA, None]:
+	def get_data(self) -> Union['CMD_DATA', None]:
 		from ..parsers import CMD_DATA
 
 		if self.socket.fileno() == -1:

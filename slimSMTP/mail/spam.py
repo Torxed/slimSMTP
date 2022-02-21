@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 spam_assasin = {}
 
-def validate_top_level_domain(domain :str, configuration :Configuration) -> bool:
+def validate_top_level_domain(domain :str, configuration :'Configuration') -> bool:
 	if domain[:1] == '.':
 		domain = domain[1:]
 
@@ -24,7 +24,7 @@ def validate_top_level_domain(domain :str, configuration :Configuration) -> bool
 
 	return True
 
-def validate_email_address(addr :str, configuration :Configuration) -> bool:
+def validate_email_address(addr :str, configuration :'Configuration') -> bool:
 	if (at_char := addr[:64].find('@')) <= 0:
 		raise InvalidAddress(f"Local part in address is to long.")
 
@@ -79,7 +79,7 @@ def ip_in_spf(ip :str, domain :str) -> Union[bool, None]:
 	else:
 		return None
 
-def spammer(client :Client) -> None:
+def spammer(client :'Client') -> None:
 	spam_assasin[client.address[0]] = time.time()
 
 def is_spammer(ip :str) -> bool:

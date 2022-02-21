@@ -3,16 +3,12 @@ def test_parser():
 	import slimSMTP
 
 	configuration = slimSMTP.Configuration(
-		port=9051,
+		port=9052,
 		address='',
 		realms=[
 			slimSMTP.Realm(name='hvornum.se')
 		]
 	)
-
-	server = slimSMTP.Server(configuration)
-	client = slimSMTP.Client(parent=server, socket=socket.socket(), fileno=1, address=('127.0.0.1', 8950))
-	server.clients[1] = client
 
 	parser = slimSMTP.Parser(
 		expectations=[
@@ -20,6 +16,21 @@ def test_parser():
 			slimSMTP.QUIT
 		]
 	)
+
+	server = slimSMTP.Server(configuration)
+	client = slimSMTP.Client(
+		parent=server,
+		socket=socket.socket(),
+		fileno=1,
+		address=('127.0.0.1', 8950),
+		parser=parser,
+		mail=slimSMTP.Mail(
+			session=server,
+			client_fd=-1,
+			transaction_id=-1
+		)
+	)
+	server.clients[1] = client
 
 	for response in parser.parse(
 			slimSMTP.CMD_DATA(

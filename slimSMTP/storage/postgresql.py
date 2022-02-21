@@ -78,7 +78,7 @@ class PostgreSQL(pydantic.BaseModel):
 					(int(transaction_id), )
 				)
 
-	def store_email(self, client :Client) -> bool:
+	def store_email(self, client :'Client') -> bool:
 		from ..logger import log
 
 		if self.session:

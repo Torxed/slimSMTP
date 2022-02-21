@@ -2,7 +2,7 @@ def test_server():
 	import slimSMTP
 
 	configuration = slimSMTP.Configuration(
-		port=9049,
+		port=9054,
 		address='',
 		realms=[
 			slimSMTP.Realm(name='test.domain')
@@ -13,5 +13,5 @@ def test_server():
 
 	import socket
 	s = socket.socket()
-	s.connect(('127.0.0.1', 9049))
+	s.connect(('127.0.0.1', 9054))
 	s.close()

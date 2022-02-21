@@ -3,7 +3,7 @@ def test_hanging_quit():
 	import slimSMTP
 
 	configuration = slimSMTP.Configuration(
-		port=9052,
+		port=9051,
 		address='',
 		realms=[
 			slimSMTP.Realm(name='test.domain')
@@ -42,7 +42,7 @@ def test_hanging_quit():
 		def run(self):
 			import socket
 			s = socket.socket()
-			s.connect(('127.0.0.1', 9052))
+			s.connect(('127.0.0.1', 9051))
 			
 			if not b'220' in s.recv(8192):
 				exit(1)

@@ -29,7 +29,7 @@ class Server:
 		self.epoll.unregister(self.socket.fileno())
 		self.socket.close()
 
-	def process_idle_connections(self) -> Iterator[Client]:
+	def process_idle_connections(self) -> Iterator['Client']:
 		time_of_check = time.time()
 		# TODO: Might be more memory efficient to not convert .items() to list()
 		# but that would mean we'd have to clean up any closed clients here after the loop
@@ -48,8 +48,8 @@ class Server:
 	def poll(self, timeout :Optional[float] = None) -> bool:
 		from .clients import Client
 		from ..mail.spam import is_spammer
-		from ..parsers import Parser
 		from ..mail import Mail
+		from ..parsers import Parser, EHLO, QUIT
 
 		if not timeout:
 			timeout = self.so_timeout
@@ -76,6 +76,12 @@ class Server:
 					session=self,
 					client_fd=client_fileno,
 					transaction_id=self.configuration.storage.begin_transaction(client_addr)
+				),
+				parser=Parser(
+					expectations=[
+						EHLO,
+						QUIT
+					]
 				)
 			)
 
@@ -84,7 +90,7 @@ class Server:
 
 		return True
 
-	def __iter__(self) -> Iterator[Client]:
+	def __iter__(self) -> Iterator['Client']:
 		filter_filenumbers = []
 		for fileno, event_id in self.epoll.poll(self.so_timeout):
 			if fileno == self.socket.fileno():
