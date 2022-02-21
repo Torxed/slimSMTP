@@ -9,7 +9,7 @@ class Configuration(pydantic.BaseModel):
 	address: str
 	realms: List[Realm]
 	hanging_timeouts :float = 10.0 # Global timeout for mail clients
-	storage :Union[Memory, PostgreSQL] = Memory()
+	storage :Union[Memory, PostgreSQL] = None
 	tls_key :Optional[pathlib.Path] = None
 	tls_cert :Optional[pathlib.Path] = None
 	tls_protocol :Optional[int] = None # ssl.PROTOCOL_TLSv1_1 == int
