@@ -13,7 +13,8 @@ dependencies = [
 	"dnspython",
 	"pydantic",
 	"psycopg2-binary",
-	"systemd"
+	"systemd",
+	"python-pam"
 ]
 
 [project.urls]
