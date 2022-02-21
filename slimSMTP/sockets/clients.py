@@ -2,7 +2,7 @@ import pydantic
 import socket
 import logging
 import time
-from typing import Tuple, Optional, TYPE_CHECKING
+from typing import Tuple, Optional, TYPE_CHECKING, Type, Union, Dict, cast, Iterator
 from .server import Server
 from .sockets import EPOLLIN
 from ..exceptions import InvalidSender
@@ -12,21 +12,28 @@ if TYPE_CHECKING:
 	from ..parsers import Parser
 	from ..parsers import CMD_DATA
 	from ..mail import Mail
+	from socket import socket as Socket
 
 class Client(pydantic.BaseModel):
 	parent :Server
 	socket :socket.socket
 	fileno :int
 	address :Tuple[str, int]
+	mail :'Mail'
+	parser :'Parser'
 	buffert :bytes = b''
-	parser :Optional['Parser'] = None
-	mail :'Mail' = None
-	last_recieve :float = None
+	last_recieve :Optional[float] = None
 	authenticated :bool = False
 	tls_protection :bool = False
 
-	def __init__(self, **data):
+	def __init__(self, **data :Union[Dict[str, Union[Socket, Server]], Server, Socket, int, Tuple[str, int], bytes, 'Parser', 'Mail', float, bool]):
 		super().__init__(**data)
+
+		if not type(data['socket']) == socket.socket:
+			return self.close()
+
+		if not type(data['parent']) == Server:
+			return self.close()
 
 		try:
 			data['socket'].send(bytes(f"220 {data['parent'].configuration.realms[0].fqdn} ESMTP\r\n", "UTF-8"))
@@ -47,28 +54,28 @@ class Client(pydantic.BaseModel):
 	class Config:
 		arbitrary_types_allowed = True
 
-	def set_parser(self, parser :'Parser'):
+	def set_parser(self, parser :'Parser') -> None:
 		self.parent.clients[self.fileno].parser = parser
 
-	def set_buffert(self, new_buffert :bytes):
+	def set_buffert(self, new_buffert :bytes) -> None:
 		self.parent.clients[self.fileno].buffert = new_buffert
 
-	def set_last_recieve(self, value):
+	def set_last_recieve(self, value :float) -> None:
 		self.parent.clients[self.fileno].last_recieve = value
 
-	def set_protection(self, value):
+	def set_protection(self, value :bool) -> None:
 		self.parent.clients[self.fileno].tls_protection = value
 
-	def get_buffert(self):
+	def get_buffert(self) -> bytes:
 		return self.parent.clients[self.fileno].buffert
 
-	def get_slice(self, start, stop):
+	def get_slice(self, start :int, stop :int) -> bytes:
 		return self.parent.clients[self.fileno].buffert[start:stop]
 
-	def get_last_recieve(self):
+	def get_last_recieve(self) -> Optional[float]:
 		return self.parent.clients[self.fileno].last_recieve
 
-	def close(self):
+	def close(self) -> None:
 		try:
 			self.parent.epoll.unregister(self.fileno)
 		except (FileNotFoundError, OSError):
@@ -82,7 +89,7 @@ class Client(pydantic.BaseModel):
 
 		return None
 
-	def get_data(self):
+	def get_data(self) -> Union[CMD_DATA, None]:
 		from ..parsers import CMD_DATA
 
 		if self.socket.fileno() == -1:
@@ -93,12 +100,12 @@ class Client(pydantic.BaseModel):
 				new_data = self.socket.recv(8192)
 
 				if len(new_data) == 0:
-					return self.close()
+					return self.close() # type: ignore
 
 				self.buffert += new_data
 				self.set_last_recieve(time.time())
 			except Exception as err:
-				return self.close()
+				return self.close() # type: ignore
 
 		# print(self.buffert)
 
@@ -115,10 +122,12 @@ class Client(pydantic.BaseModel):
 					session=self
 				)
 			except pydantic.error_wrappers.ValidationError:
-				self.close()
+				return self.close() # type: ignore
+
+		return None
 
 
-	def parse(self, data :'CMD_DATA'):
+	def parse(self, data :'CMD_DATA') -> Iterator[bytes]:
 		try:
 			for response in self.parser.parse(data):
 				yield response
@@ -130,5 +139,5 @@ class Client(pydantic.BaseModel):
 			log(f"Client({self}) is marked as a spammer: {error}", level=logging.WARNING, fg="red")
 
 
-	def respond(self, data :bytes):
-		self.socket.send(data)
+	def respond(self, data :bytes) -> int:
+		return self.socket.send(data)

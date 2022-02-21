@@ -4,18 +4,25 @@ import time
 import logging
 import socket
 import ipaddress
+from typing import TYPE_CHECKING, Iterator, Union
 from ..logger import log
 from ..exceptions import SPFError, InvalidAddress
 from ..parsers.dns import SPF
 
-def validate_top_level_domain(domain, configuration):
+if TYPE_CHECKING:
+	from ..configuration import Configuration
+	from ..sockets import Client
+
+def validate_top_level_domain(domain :str, configuration :Configuration) -> bool:
 	if domain[:1] == '.':
 		domain = domain[1:]
 
 	if domain not in configuration.valid_top_domains:
 		raise InvalidAddress(f"TLD of recipient not a valid TLD: {domain}")
 
-def validate_email_address(addr, configuration):
+	return True
+
+def validate_email_address(addr :str, configuration :Configuration) -> bool:
 	if (at_char := addr[:64].find('@')) <= 0:
 		raise InvalidAddress(f"Local part in address is to long.")
 
@@ -32,7 +39,9 @@ def validate_email_address(addr, configuration):
 
 	validate_top_level_domain(pathlib.PurePath(addr).suffix, configuration)
 
-def get_mail_servers(domain):
+	return True
+
+def get_mail_servers(domain :str) -> Iterator[str]:
 	log(f"Getting IP for all MX records on domain {domain}", level=logging.DEBUG)
 	try:
 		for mx_record in dns.resolver.resolve(domain, 'MX', search=True):
@@ -40,13 +49,13 @@ def get_mail_servers(domain):
 			log(f"Found mail server: {mail_server}", level=logging.DEBUG)
 			for ip_record in dns.resolver.resolve(mail_server, 'A', search=True):
 				log(f"Resolved mail server to IP: {ip_record.to_text()}", level=logging.DEBUG)
-				yield ip_record.to_text()
+				yield str(ip_record.to_text())
 	except dns.resolver.NXDOMAIN:
 		ip_record = socket.gethostbyname(domain)
 		log(f"Found IP using simple forward DNS lookup using socket library: {ip_record}", level=logging.DEBUG)
-		yield ip_record
+		yield str(ip_record)
 
-def ip_in_spf(ip, domain):
+def ip_in_spf(ip :str, domain :str) -> Union[bool, None]:
 	found_spf = False
 	log(f"Iterating all SPF records to find {ip} in domain {domain}", level=logging.DEBUG)
 	try:
@@ -69,10 +78,10 @@ def ip_in_spf(ip, domain):
 		return None
 
 spam_assasin = {}
-def spammer(client):
+def spammer(client :Client) -> None:
 	spam_assasin[client.address[0]] = time.time()
 
-def is_spammer(ip):
+def is_spammer(ip :str) -> bool:
 	if ip in spam_assasin:
 		return True
 

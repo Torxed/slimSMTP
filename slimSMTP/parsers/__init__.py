@@ -1,3 +1,7 @@
-from .command import CMD_DATA, EHLO, QUIT
-from .parser import Parser
-from .dns import SPF
+from .command import (
+	CMD_DATA as CMD_DATA,
+	EHLO as EHLO,
+	QUIT as QUIT
+)
+from .parser import Parser as Parser
+from .dns import SPF as SPF

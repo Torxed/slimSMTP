@@ -1,21 +1,24 @@
-from .realms import Realm
-from .configuration import Configuration
+from .realms import Realm as Realm
+from .configuration import Configuration as Configuration
 from .parsers import (
-	Parser,
-	CMD_DATA,
-	EHLO,
-	QUIT,
-	SPF
+	Parser as Parser,
+	CMD_DATA as CMD_DATA,
+	EHLO as EHLO,
+	QUIT as QUIT,
+	SPF as SPF
 )
-from .sessions import Session
+from .sessions import Session as Session
 from .sockets import (
-	Server,
-	Client
+	Server as Server,
+	Client as Client
 )
 from .mail import (
-	Mail,
-	spammer,
-	is_spammer
+	Mail as Mail,
+	spammer as spammer,
+	is_spammer as is_spammer
 )
-from .logger import log
-from .storage import PostgreSQL, Memory
+from .logger import log as log
+from .storage import (
+	PostgreSQL as PostgreSQL,
+	Memory as Memory
+)

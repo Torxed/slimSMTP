@@ -2,6 +2,7 @@ import re
 import shlex
 import ipaddress
 import dns.resolver
+from typing import List
 from ..exceptions import SPFError
 
 class SPF:
@@ -12,7 +13,7 @@ class SPF:
 		initial_data = initial_data.replace('" "', ' ')
 		
 		self.version = version_data[0]
-		self.hosts = []
+		self.hosts :List[str] = []
 
 		for field in shlex.split(initial_data.strip('"')):
 			if ':' in field:

@@ -1,19 +1,19 @@
 import pydantic
 import ssl
 import pathlib
-from typing import List, Any, Optional, Union
+from typing import List, Any, Optional, Union, Type
 from ..realms import Realm
-from ..storage import Memory
+from ..storage import Memory, PostgreSQL
 
 class Configuration(pydantic.BaseModel):
 	port: int
 	address: str
 	realms: List[Realm]
 	hanging_timeouts :float = 10.0 # Global timeout for mail clients
-	storage :Optional[Any] = Memory()
+	storage :Union[Memory, PostgreSQL] = Memory()
 	tls_key :Optional[pathlib.Path] = None
 	tls_cert :Optional[pathlib.Path] = None
-	tls_protocol :Union[type(ssl.PROTOCOL_TLSv1_1), type(ssl.PROTOCOL_TLSv1_2), None] = None
+	tls_protocol :Optional[int] = None # ssl.PROTOCOL_TLSv1_1 == int
 	tls_certificate_authorities :List[pathlib.Path] = []
 	valid_top_domains :List[str] = [
 		'local', 'localdomain', 'domain', 'home', 'host', 'corp', # Local TLDs

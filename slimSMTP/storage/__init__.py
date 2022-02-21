@@ -1,2 +1,2 @@
-from .postgresql import PostgreSQL
-from .memory import Memory
+from .postgresql import PostgreSQL as PostgreSQL
+from .memory import Memory as Memory

@@ -1,1 +1,1 @@
-from .realm import Realm
+from .realm import Realm as Realm

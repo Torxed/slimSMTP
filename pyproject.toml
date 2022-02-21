@@ -1,0 +1,72 @@
+[build-system]
+requires = ["flit_core >=2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "python-slimSMTP"
+module = "slimSMTP"
+authors = [{name = "Anton Hvornum", email = "anton.feeds+github@gmail.com"}]
+readme = "README.md"
+classifiers = ["License :: OSI Approved :: MIT License"]
+dynamic = ["version", "description"]
+dependencies = [
+	"dnspython",
+	"pydantic",
+	"psycopg2-binary",
+	"systemd"
+]
+
+[project.urls]
+Home = "https://github.com/Torxed/slimSMTP"
+Documentation = "https://slimSMTP.readthedocs.io/"
+Source = "https://github.com/Torxed/slimSMTP"
+
+[project.optional-dependencies]
+test = [
+	"pytest",
+	"mypy",
+	"flake8",
+]
+
+[project.scripts]
+slimSMTP = "slimSMTP:main"
+
+[tool.flit.sdist]
+exclude = ["tests/", "test.py"]
+
+[tool.flit.module]
+name = "slimSMTP"
+
+[tool.mypy]
+python_version = "3.10"
+exclude = "tests"
+
+[[tool.mypy.overrides]]
+module = "psycopg2.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "dnspython.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "systemd.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pydantic.*"
+ignore_missing_imports = true
+
+[tool.bandit]
+targets = ["slimSMTP"]
+exclude = ["/tests"]
+
+[tool.flake8]
+count = true
+ignore = "E126,E128,E203,E231,E261,E302,E402,E722,F541,W191,W292,W293,W503"
+max-complexity = 40
+max-line-length = 236
+show-source = true
+statistics = true
+per-file-ignores = "__init__.py:F401"
+exclude = ["tests"]

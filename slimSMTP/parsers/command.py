@@ -1,7 +1,7 @@
 import pydantic
 import socket
 import logging
-from typing import Callable, List
+from typing import Callable, List, Any, Iterator
 from .parser import Parser
 from ..realms import Realm
 from ..sockets import Client
@@ -14,29 +14,31 @@ class CMD_DATA(pydantic.BaseModel):
 	session: Client
 
 
-class authenticated:
-	def __init__(self, func, **kwargs):
-		if type(func).__name__ == 'type':
-			self.func = func
+# class authenticated:
+# 	def __init__(self, func :Callable[..., Any], **kwargs :str):
+# 		if type(func).__name__ == 'type':
+# 			self.func = func
 
-			return None
+# 			return None
 
-		if func.obj.session.authenticated == False:
-			raise AuthenticationError(f"Session({func.session}) is not authenticated and can not perform CMD({func})")
+# 		if func.obj.session.authenticated == False:
+# 			raise AuthenticationError(f"Session({func.session}) is not authenticated and can not perform CMD({func})")
 
-	def can_hanadle(self, obj :CMD_DATA):
-		return self.func.can_hanadle(obj)
+# 	def can_hanadle(self, obj :CMD_DATA):
+# 		return self.func.can_hanadle(obj)
 
-	def handle(self, obj :CMD_DATA):
-		for result in self.func.respond(obj):
-			yield result
+# 	def handle(self, obj :CMD_DATA):
+# 		for result in self.func.respond(obj):
+# 			yield result
 
 
 class MAIL_FROM:
-	def can_hanadle(obj :CMD_DATA):
+	@staticmethod
+	def can_hanadle(obj :CMD_DATA) -> bool:
 		return obj.data.lower().startswith('mail from:')
 
-	def respond(obj :CMD_DATA):
+	@staticmethod
+	def respond(obj :CMD_DATA) -> Iterator[bytes]:
 		log(f"Processing: MAIL_FROM", level=logging.DEBUG, fg="cyan")
 		from ..mail.helpers import clean_email
 		try:
@@ -62,16 +64,19 @@ class MAIL_FROM:
 			)
 		)
 
-	def handle(obj :CMD_DATA):
+	@staticmethod
+	def handle(obj :CMD_DATA) -> Iterator[bytes]:
 		for result in MAIL_FROM.respond(obj):
 			yield result
 
 
 class RCPT_TO:
-	def can_hanadle(obj :CMD_DATA):
+	@staticmethod
+	def can_hanadle(obj :CMD_DATA) -> bool:
 		return obj.data.lower().startswith('rcpt to:')
 
-	def respond(obj :CMD_DATA):
+	@staticmethod
+	def respond(obj :CMD_DATA) -> Iterator[bytes]:
 		log(f"Processing: RCPT_TO", level=logging.DEBUG, fg="cyan")
 
 		from ..mail.helpers import clean_email
@@ -99,16 +104,19 @@ class RCPT_TO:
 			)
 		)
 
-	def handle(obj :CMD_DATA):
+	@staticmethod
+	def handle(obj :CMD_DATA) -> Iterator[bytes]:
 		for result in RCPT_TO.respond(obj):
 			yield result
 
 
 class MAIL_SESSION:
-	def can_hanadle(obj :CMD_DATA):
+	@staticmethod
+	def can_hanadle(obj :CMD_DATA) -> bool:
 		return True
 
-	def respond(obj :CMD_DATA):
+	@staticmethod
+	def respond(obj :CMD_DATA) -> Iterator[bytes]:
 		if obj.data == '.':
 			log(f"Processing: DATA (completion)", level=logging.DEBUG, fg="cyan")
 			if obj.session.parent.configuration.storage.store_email(obj.session):
@@ -134,16 +142,19 @@ class MAIL_SESSION:
 			log(f"Processing: DATA (transit)", level=logging.DEBUG, fg="cyan")
 			obj.session.mail.add_body(obj.data)
 
-	def handle(obj :CMD_DATA):
+	@staticmethod
+	def handle(obj :CMD_DATA) -> Iterator[bytes]:
 		for result in MAIL_SESSION.respond(obj):
 			yield result
 
 
 class DATA:
-	def can_hanadle(obj :CMD_DATA):
+	@staticmethod
+	def can_hanadle(obj :CMD_DATA) -> bool:
 		return obj.data.lower().startswith('data')
 
-	def respond(obj :CMD_DATA):
+	@staticmethod
+	def respond(obj :CMD_DATA) -> Iterator[bytes]:
 		log(f"Processing: DATA", level=logging.DEBUG, fg="cyan")
 
 		yield b'354 End data with <CR><LF>.<CR><LF>\r\n'
@@ -156,16 +167,19 @@ class DATA:
 			)
 		)
 
-	def handle(obj :CMD_DATA):
+	@staticmethod
+	def handle(obj :CMD_DATA) -> Iterator[bytes]:
 		for result in DATA.respond(obj):
 			yield result
 
 
 class EHLO:
-	def can_hanadle(obj :CMD_DATA):
+	@staticmethod
+	def can_hanadle(obj :CMD_DATA) -> bool:
 		return obj.data.lower().startswith('ehlo')
 
-	def respond(obj :CMD_DATA):
+	@staticmethod
+	def respond(obj :CMD_DATA) -> Iterator[bytes]:
 		log(f"Processing: EHLO", level=logging.DEBUG, fg="cyan")
 
 		supports = [
@@ -202,21 +216,25 @@ class EHLO:
 			)
 		)
 
-	def handle(obj :CMD_DATA):
+	@staticmethod
+	def handle(obj :CMD_DATA) -> Iterator[bytes]:
 		for result in EHLO.respond(obj):
 			yield result
 
 
 class STARTTLS:
-	def can_hanadle(obj :CMD_DATA):
+	@staticmethod
+	def can_hanadle(obj :CMD_DATA) -> bool:
 		return obj.data.lower().startswith('starttls')
 
-	def respond(obj :CMD_DATA):
+	@staticmethod
+	def respond(obj :CMD_DATA) -> Iterator[bytes]:
 		log(f"Processing: STARTTLS", level=logging.DEBUG, fg="cyan")
 		yield b'220 2.0.0 Ready to start TLS\r\n'
 
 		import ssl
-		ssl_context = ssl.SSLContext(protocol=obj.session.parent.configuration.tls_protocol)
+		protocol = obj.session.parent.configuration.tls_protocol
+		ssl_context = ssl.SSLContext(protocol=protocol if protocol else ssl.PROTOCOL_TLSv1_2)
 		ssl_context.load_default_certs()
 		ssl_context.verify_mode = ssl.CERT_REQUIRED
 		ssl_context.load_cert_chain(
@@ -256,20 +274,24 @@ class STARTTLS:
 			)
 		)
 
-	def handle(obj :CMD_DATA):
+	@staticmethod
+	def handle(obj :CMD_DATA) -> Iterator[bytes]:
 		for result in STARTTLS.respond(obj):
 			yield result
 
 
 class QUIT:
-	def can_hanadle(obj :CMD_DATA):
+	@staticmethod
+	def can_hanadle(obj :CMD_DATA) -> bool:
 		return obj.data.lower().startswith('quit')
 
-	def respond(obj :CMD_DATA):
+	@staticmethod
+	def respond(obj :CMD_DATA) -> Iterator[bytes]:
 		log(f"Processing: QUIT", level=logging.DEBUG, fg="cyan")
 		yield b'221 OK\r\n'
 
-	def handle(obj :CMD_DATA):
+	@staticmethod
+	def handle(obj :CMD_DATA) -> Iterator[bytes]:
 		for result in QUIT.respond(obj):
 			yield result
 
