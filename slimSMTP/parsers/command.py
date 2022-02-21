@@ -54,6 +54,22 @@ class MAIL_FROM:
 				)
 			)
 			return None
+		except AuthenticationError:
+			parser_list :List[Union[Type[QUIT], Type[AUTH_PLAIN]]] = [
+				QUIT
+			]
+
+			if isinstance(obj.session.socket, ssl.SSLSocket):
+				parser_list.append(AUTH_PLAIN)
+
+			obj.session.set_parser(
+				Parser(
+					expectations=parser_list
+				)
+			)
+
+			yield b'504 need to authenticate first\r\n'
+			return None
 
 		yield b'250 Ok\r\n'
 
