@@ -205,6 +205,7 @@ class Configuration(pydantic.BaseModel):
 	]
 
 	def __init__(self, **data):
+		print(data)
 		super().__init__(**data)
 
 	class Config:
