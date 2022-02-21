@@ -44,6 +44,7 @@ def deliver_external_email(session, sender, reciever, data, secure = False):
 			server = smtplib.SMTP(mail_server, port=25, timeout=10) # 587 = TLS, 465 = SSL
 			if server.starttls(context=context)[0] != 220:
 				log('Could not start TLS.', level=logging.ERROR, fg="red")
+				server.quit()
 				continue
 			
 			server.sendmail(sender, reciever, data)
