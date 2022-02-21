@@ -18,6 +18,7 @@ class Mail(BaseModel):
 		arbitrary_types_allowed = True
 
 	def add_sender(self, who):
+		print(f'Validating sender: {who}')
 		validate_email_address(who, self.session.configuration)
 		domain_of_sender = who[who.find('@')+1:].strip()
 
@@ -46,6 +47,9 @@ class Mail(BaseModel):
 		self.sender = who
 
 	def add_recipient(self, who):
+		# b'MAIL FROM:<anton.doxid@gmail.com> SIZE=2104\r\n'
+		# b'RCPT TO:<anton@archlinux.life>\r\n'
+		print(f'Validating recipient: {who}')
 		validate_email_address(who, self.session.configuration)
 
 		domain_of_recipient = who[who.find('@')+1:].strip()
