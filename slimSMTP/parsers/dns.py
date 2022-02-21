@@ -17,23 +17,25 @@ class SPF:
 		for field in shlex.split(initial_data.strip('"')):
 			if ':' in field:
 				key, value = field.split(':', 1)
+			elif '=' in field:
+				key, value = field.split('=', 1)
 
-				if key == 'include':
-					for record in dns.resolver.resolve(value, 'TXT', search=True):
-						try:
-							for host in SPF(record.to_text()).hosts:
-								self.hosts.append(host)
-						except SPFError:
-							pass
-				elif key == 'redirect':
-					for record in dns.resolver.resolve(value, 'TXT', search=True):
-						try:
-							for host in SPF(record.to_text()).hosts:
-								self.hosts.append(host)
-						except SPFError:
-							pass
-				elif key == 'ip4':
-					if not '/' in value:
-						value += '/32'
+			if key == 'include':
+				for record in dns.resolver.resolve(value, 'TXT', search=True):
+					try:
+						for host in SPF(record.to_text()).hosts:
+							self.hosts.append(host)
+					except SPFError:
+						pass
+			elif key == 'redirect':
+				for record in dns.resolver.resolve(value, 'TXT', search=True):
+					try:
+						for host in SPF(record.to_text()).hosts:
+							self.hosts.append(host)
+					except SPFError:
+						pass
+			elif key == 'ip4':
+				if not '/' in value:
+					value += '/32'
 
-					self.hosts.append(ipaddress.ip_network(value, False))
+				self.hosts.append(ipaddress.ip_network(value, False))
