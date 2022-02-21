@@ -144,6 +144,7 @@ class MAIL_SESSION:
 	def respond(obj :CMD_DATA) -> Iterator[bytes]:
 		if obj.data == '.':
 			log(f"Processing: DATA (completion)", level=logging.DEBUG, fg="cyan")
+			log(f"Storing e-mail using storage: {obj.session.parent.configuration.storage}", level=logging.DEBUG, fg="cyan")
 			if obj.session.parent.configuration.storage.store_email(obj.session):
 				yield b'250 Ok: Queued!\r\n'
 
