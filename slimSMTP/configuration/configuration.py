@@ -1,6 +1,6 @@
 import pydantic
 import pathlib
-from typing import List, Optional, Union, Type
+from typing import List, Optional, Union
 from ..realms import Realm
 from ..storage import Memory, PostgreSQL
 
@@ -9,7 +9,7 @@ class Configuration(pydantic.BaseModel):
 	address: str
 	realms: List[Realm]
 	hanging_timeouts :float = 10.0 # Global timeout for mail clients
-	storage :Union[Type[Memory], Type[PostgreSQL]] = None
+	storage :PostgreSQL # Can't get Pydantic to allow more than one type, but that's ok for now
 	tls_key :Optional[pathlib.Path] = None
 	tls_cert :Optional[pathlib.Path] = None
 	tls_protocol :Optional[int] = None # ssl.PROTOCOL_TLSv1_1 == int
@@ -203,10 +203,6 @@ class Configuration(pydantic.BaseModel):
 		'网', '通', '臺灣', '基', '谷歌', '物', '通販', '集', '電訊盈科', '利浦', '食品',
 		'餐', '香格里拉', '香港'
 	]
-
-	def __init__(self, **data):
-		print(data)
-		super().__init__(**data)
 
 	class Config:
 		arbitrary_types_allowed = True
