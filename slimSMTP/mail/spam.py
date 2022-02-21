@@ -48,10 +48,13 @@ def get_mail_servers(domain):
 
 def ip_in_spf(ip, domain):
 	found_spf = False
+	log(f"Iterating all SPF records to find {ip} in domain {domain}", level=logging.DEBUG)
 	try:
 		for record in dns.resolver.resolve(domain, 'TXT', search=True):
+			log(f"Found potential SPF record: {record.to_text()}", level=logging.DEBUG)
 			try:
 				for subnet in SPF(record.to_text()).hosts:
+					log(f"Iterating over subnet {subnet} in SPF record", level=logging.DEBUG)
 					found_spf = True
 					if ipaddress.ip_address(ip) in subnet:
 						return True
