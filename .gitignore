@@ -1,0 +1,8 @@
+**__pycache__**
+**/**.pyc
+/test*.py
+/*.txt
+/example.py
+/*.pem
+/*.crt
+/*.key
