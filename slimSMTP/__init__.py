@@ -14,8 +14,10 @@ from .sockets import (
 )
 from .mail import (
 	Mail as Mail,
+	ExternalEmail as ExternalEmail,
 	spammer as spammer,
-	is_spammer as is_spammer
+	is_spammer as is_spammer,
+	deliver_external_email as deliver_external_email
 )
 from .logger import log as log
 from .storage import (

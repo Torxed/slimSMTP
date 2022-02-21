@@ -1,7 +1,8 @@
 import pydantic
 import psycopg2
 import logging
-from typing import Optional, Tuple, TYPE_CHECKING
+import psycopg2.extras
+from typing import Optional, Tuple, TYPE_CHECKING, Iterator, Dict, Any
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 if TYPE_CHECKING:
@@ -41,11 +42,31 @@ class PostgreSQL(pydantic.BaseModel):
 	class Config:
 		arbitrary_types_allowed = True
 
+	def get_undelievered_emails(self) -> Iterator[Dict[str, Any]]:
+		if self.session:
+			with self.session.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+				cursor.execute(f"SELECT * FROM emails WHERE delivered is null ORDER BY id ASC;")
+				for mail in cursor:
+					yield dict(mail)
+
 	def setup_default_tables(self) -> None:
 		if self.session:
 			with self.session.cursor() as cursor:
-				cursor.execute(f"CREATE TABLE IF NOT EXISTS emails (id BIGSERIAL PRIMARY KEY, sender VARCHAR(320), recipient VARCHAR(320), data VARCHAR(10485760), secure BOOLEAN, stored TIMESTAMP WITH TIME ZONE DEFAULT now());")
+				cursor.execute(f"CREATE TABLE IF NOT EXISTS emails (id BIGSERIAL PRIMARY KEY, sender VARCHAR(320), recipient VARCHAR(320), data VARCHAR(10485760), secure BOOLEAN, stored TIMESTAMP WITH TIME ZONE DEFAULT now(), delivered TIMESTAMP WITH TIME ZONE, delivery_attempts INT DEFAULT 0, last_delivery_attempt TIMESTAMP WITH TIME ZONE);")
 				cursor.execute(f"CREATE TABLE IF NOT EXISTS transactions (id BIGSERIAL PRIMARY KEY, email BIGINT, ip INET, authenticated VARCHAR(255), secure BOOLEAN, connected TIMESTAMP WITH TIME ZONE DEFAULT now());")
+				self.session.commit()
+
+	def update_delivery_attempt(self, email_id :int) -> None:
+		from ..logger import log
+
+		if self.session:
+			log(f"Updating delivery attempt for email transaction {email_id}", level=logging.INFO, fg="yellow")
+
+			with self.session.cursor() as cursor:
+				cursor.execute(
+					f"UPDATE emails SET delivery_attempts = delivery_attempts + 1, last_delivery_attempt = now() WHERE id=%s;", # nosec
+					(int(email_id), )
+				)
 				self.session.commit()
 
 	def begin_transaction(self, address :Tuple[str, int]) -> int:
@@ -66,6 +87,19 @@ class PostgreSQL(pydantic.BaseModel):
 
 		return transaction_id
 
+	def set_as_delivered(self, email_id :int) -> None:
+		from ..logger import log
+
+		if self.session:
+			log(f"Marking e-mail for transaction {email_id} as delivered", level=logging.DEBUG, fg="green")
+
+			with self.session.cursor() as cursor:
+				cursor.execute(
+					f"UPDATE emails SET delivered=now() WHERE id=%s;", # nosec
+					(int(email_id), )
+				)
+				self.session.commit()
+
 	def set_authenticated_as(self, transaction_id :int, username :str) -> None:
 		from ..logger import log
 
@@ -77,6 +111,7 @@ class PostgreSQL(pydantic.BaseModel):
 					f"UPDATE transactions SET authenticated=%s WHERE id=%s;", # nosec
 					(str(username), int(transaction_id))
 				)
+				self.session.commit()
 
 	def set_transaction_as_secure(self, transaction_id :int) -> None:
 		from ..logger import log
@@ -89,6 +124,7 @@ class PostgreSQL(pydantic.BaseModel):
 					f"UPDATE transactions SET secure=true WHERE id=%s;", # nosec
 					(int(transaction_id), )
 				)
+				self.session.commit()
 
 	def store_email(self, client :'Client') -> bool:
 		from ..logger import log

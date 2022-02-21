@@ -1,10 +1,53 @@
 import logging
-from typing import List
+import datetime
+from typing import List, Optional
 from pydantic import BaseModel
 from .spam import validate_email_address, get_mail_servers, ip_in_spf, spammer
 from ..sockets import Server
 from ..exceptions import InvalidSender, AuthenticationError
 from ..logger import log
+
+class ExternalEmail(BaseModel):
+	email_id :int
+	session :Server
+	sender: str
+	recipient: str
+	data :str
+	secure :bool
+	stored :datetime.datetime
+	delivery_attempts :int
+	delivered: Optional[datetime.datetime] = None
+	last_delivery_attempt :Optional[datetime.datetime] = None
+
+	class Config:
+		arbitrary_types_allowed = True
+
+	def __init__(self, **data):
+		data['email_id'] = data['id']
+		super().__init__(**data)
+
+	def deliver(self):
+		from .external import deliver_external_email
+
+		if self.last_delivery_attempt:
+			delta = datetime.datetime.now(self.last_delivery_attempt.tzinfo) - self.last_delivery_attempt
+			seconds_in_day = 24 * 60 * 60
+			minutes, seconds = divmod(delta.days * seconds_in_day + delta.seconds, 60)
+
+			time_delta_since_last_attempt_in_minutes = (minutes * 60 + seconds) / 60
+
+			if time_delta_since_last_attempt_in_minutes < 1:
+				return False
+
+		if deliver_external_email(self.session, self.sender, self.recipient, self.data, self.secure):
+			self.session.configuration.storage.set_as_delivered(self.email_id)
+
+			return True
+		else:
+			self.session.configuration.storage.update_delivery_attempt(self.email_id)
+
+		return False
+
 
 class Mail(BaseModel):
 	session :Server
@@ -66,7 +109,7 @@ class Mail(BaseModel):
 			
 			# If the client tried to send externally, without authentication (which we don't support yet)
 			# then it's definetely a spammer.
-			spammer(self.session.clients[self.client_fd])
+			self.session.clients[self.client_fd].spammer(log_message)
 			self.session.clients[self.client_fd].close()
 			
 			raise AuthenticationError(log_message)
