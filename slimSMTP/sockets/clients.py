@@ -51,6 +51,7 @@ class Client(pydantic.BaseModel):
 		arbitrary_types_allowed = True
 
 	def set_parser(self, parser :'Parser') -> None:
+		log(f"Setting new parser for Client(address={self.address}): Parser({parser})", level=logging.DEBUG, fg="cyan")
 		self.parent.clients[self.fileno].parser = parser
 
 	def set_buffert(self, new_buffert :bytes) -> None:
@@ -104,8 +105,6 @@ class Client(pydantic.BaseModel):
 				log(f"Unknown exception: {err}", level=logging.DEBUG, fg="yellow")
 				return self.close() # type: ignore
 
-		# print(self.buffert)
-
 		if b'\r\n' in self.buffert:
 			first_linebreak = self.get_buffert().find(b'\r\n')
 			data = self.get_slice(0, first_linebreak)
@@ -123,16 +122,17 @@ class Client(pydantic.BaseModel):
 
 		return None
 
+	def spammer(self, reason :str) -> None:
+		from ..mail.spam import spammer
+		spammer(self, reason)
+		return self.close()
+
 	def parse(self, data :'CMD_DATA') -> Iterator[bytes]:
 		try:
 			for response in self.parser.parse(data):
 				yield response
 		except InvalidSender as error:
-			from ..mail.spam import spammer
-
-			self.close()
-			spammer(self)
-			log(f"Client({self}) is marked as a spammer: {error}", level=logging.WARNING, fg="red")
+			return self.spammer(str(error))
 
 	def respond(self, data :bytes) -> int:
 		return self.socket.send(data)

@@ -79,7 +79,8 @@ def ip_in_spf(ip :str, domain :str) -> Union[bool, None]:
 	else:
 		return None
 
-def spammer(client :'Client') -> None:
+def spammer(client :'Client', reason :str = 'Generic Error') -> None:
+	log(f"Client({client}) is marked as a spammer: {reason}", level=logging.WARNING, fg="red")
 	spam_assasin[client.address[0]] = time.time()
 
 def is_spammer(ip :str) -> bool:

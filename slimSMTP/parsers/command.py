@@ -1,6 +1,9 @@
 import pydantic
 import socket
 import logging
+import ssl
+import base64
+from pam import pam as pamd
 from typing import List, Iterator
 from .parser import Parser
 from ..realms import Realm
@@ -83,13 +86,20 @@ class RCPT_TO:
 		try:
 			obj.session.mail.add_recipient(clean_email(obj.data.lower()[8:].strip()))
 		except AuthenticationError:
+			parser_list = [
+				QUIT
+			]
+
+			if isinstance(obj.session.socket, ssl.SSLSocket):
+				parser_list.append(AUTH_PLAIN)
+
 			obj.session.set_parser(
 				Parser(
-					expectations=[
-						QUIT
-					]
+					expectations=parser_list
 				)
 			)
+
+			yield b'504 need to authenticate first\r\n'
 			return None
 
 		yield b'250 Ok\r\n'
@@ -190,7 +200,10 @@ class EHLO:
 			'8BITMIME'
 		]
 
-		if isinstance(obj.session.socket, socket.socket):
+		if isinstance(obj.session.socket, ssl.SSLSocket):
+			# We enable LOGIN only when we're processing a ssl.SSLSocket
+			supports.append('AUTH PLAIN LOGIN')
+		else:
 			supports.append('STARTTLS')
 
 		response = b''
@@ -207,7 +220,9 @@ class EHLO:
 			QUIT
 		]
 
-		if isinstance(obj.session.socket, socket.socket):
+		if isinstance(obj.session.socket, ssl.SSLSocket):
+			expectation_list.append(AUTH_PLAIN)
+		else:
 			# We only add STARTTLS if the endpoint is a socket, not ssl.socket
 			expectation_list.append(STARTTLS)
 
@@ -220,6 +235,116 @@ class EHLO:
 	@staticmethod
 	def handle(obj :CMD_DATA) -> Iterator[bytes]:
 		for result in EHLO.respond(obj):
+			yield result
+
+
+class PLAIN_CREDENTIALS:
+	@staticmethod
+	def can_hanadle(obj :CMD_DATA) -> bool:
+		return True
+
+	@staticmethod
+	def respond(obj :CMD_DATA) -> Iterator[bytes]:
+		credentials = obj.data.strip()
+		if len(credentials):
+			username, password = base64.b64decode(credentials).strip(b'\x00').split(b'\x00', 1)
+			username = username.decode('UTF-8')
+			password = password.decode('UTF-8')
+			#password = base64.b64encode(password)
+
+			pam = pamd()
+			if pam.authenticate(username, password):
+				log(f"Client(address={obj.session.address}) authenticated as {username}", level=logging.INFO, fg="green")
+				obj.session.parent.clients[obj.session.fileno].authenticated = True
+
+				obj.session.set_parser(
+					Parser(
+						expectations=[
+							MAIL_FROM,
+							QUIT
+						]
+					)
+				)
+				
+				yield b'235 Authentication succeeded\r\n'
+				return
+
+		obj.session.spammer(f"Client(address={obj.session.address}) failed authentication as {username}")
+		# obj.session.set_parser(
+		# 	Parser(
+		# 		expectations=[
+		# 			QUIT
+		# 		]
+		# 	)
+		# )
+
+		# yield b'535 5.7.8 Error: authentication failed.\r\n'
+
+
+	@staticmethod
+	def handle(obj :CMD_DATA) -> Iterator[bytes]:
+		for result in PLAIN_CREDENTIALS.respond(obj):
+			yield result
+
+
+class AUTH_PLAIN:
+	@staticmethod
+	def can_hanadle(obj :CMD_DATA) -> bool:
+		return obj.data.lower().startswith('auth plain')
+
+	@staticmethod
+	def respond(obj :CMD_DATA) -> Iterator[bytes]:
+		log(f"Processing: AUTH PLAIN", level=logging.DEBUG, fg="cyan")
+
+		credentials = obj.data[10:].strip()
+		if len(credentials):
+			username, password = base64.b64decode(credentials).strip(b'\x00').split(b'\x00', 1)
+			username = username.decode('UTF-8')
+			password = password.decode('UTF-8')
+			#password = base64.b64encode(password)
+
+			pam = pamd()
+			if pam.authenticate(username, password):
+				log(f"Client(address={obj.session.address}) authenticated as {username}", level=logging.INFO, fg="green")
+				obj.session.parent.clients[obj.session.fileno].authenticated = True
+
+				obj.session.set_parser(
+					Parser(
+						expectations=[
+							MAIL_FROM,
+							QUIT
+						]
+					)
+				)
+				
+				yield b'235 Authentication succeeded\r\n'
+			else:
+				# obj.session.set_parser(
+				# 	Parser(
+				# 		expectations=[
+				# 			QUIT
+				# 		]
+				# 	)
+				# )
+				# yield b'535 5.7.8 Error: authentication failed.\r\n'
+				
+				obj.session.spammer(f"Client(address={obj.session.address}) failed authentication as {username}")
+
+
+		else:
+			obj.session.set_parser(
+				Parser(
+					expectations=[
+						PLAIN_CREDENTIALS
+					]
+				)
+			)
+
+			yield b'334\r\n'
+
+	@staticmethod
+	def handle(obj :CMD_DATA) -> Iterator[bytes]:
+		for result in AUTH_PLAIN.respond(obj):
 			yield result
 
 
@@ -237,7 +362,7 @@ class STARTTLS:
 		protocol = obj.session.parent.configuration.tls_protocol
 		ssl_context = ssl.SSLContext(protocol=protocol if protocol else ssl.PROTOCOL_TLSv1_2)
 		ssl_context.load_default_certs()
-		ssl_context.verify_mode = ssl.CERT_REQUIRED
+		ssl_context.verify_mode = ssl.CERT_NONE
 		ssl_context.load_cert_chain(
 			certfile=str(obj.session.parent.configuration.tls_cert),
 			keyfile=str(obj.session.parent.configuration.tls_key)
@@ -250,7 +375,7 @@ class STARTTLS:
 				obj.session.parent.clients[obj.session.fileno].socket,
 				server_side=True,
 				do_handshake_on_connect=True,
-				suppress_ragged_eofs=False
+				suppress_ragged_eofs=True
 			)
 			obj.session.parent.clients[obj.session.fileno].buffert = b''
 			obj.session.parent.clients[obj.session.fileno].set_protection(True)
@@ -261,6 +386,15 @@ class STARTTLS:
 				Parser(
 					expectations=[
 						QUIT
+					]
+				)
+			)
+			return None
+		except ConnectionResetError:
+			log(f"Client(address={obj.session.address}) disconnected during handshake", level=logging.DEBUG)
+			obj.session.set_parser(
+				Parser(
+					expectations=[
 					]
 				)
 			)
