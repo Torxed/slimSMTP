@@ -201,7 +201,7 @@ class EHLO:
 
 		if isinstance(obj.session.socket, ssl.SSLSocket):
 			# We enable LOGIN only when we're processing a ssl.SSLSocket
-			supports.append('AUTH PLAIN LOGIN')
+			supports.append('AUTH PLAIN')
 		else:
 			supports.append('STARTTLS')
 
