@@ -55,7 +55,7 @@ class PostgreSQL(pydantic.BaseModel):
 		if self.session:
 			with self.session.cursor() as cursor:
 				cursor.execute(
-					f"INSERT INTO transactions (ip, secure) VALUES (%s, %s, %s) RETURNING id;", # nosec
+					f"INSERT INTO transactions (ip, secure) VALUES (%s, %s) RETURNING id;", # nosec
 					(str(address[0]), False)
 				)
 				transaction_id = cursor.fetchone()[0]
