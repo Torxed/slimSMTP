@@ -55,8 +55,8 @@ class PostgreSQL(pydantic.BaseModel):
 		if self.session:
 			with self.session.cursor() as cursor:
 				cursor.execute(
-					f"INSERT INTO transactions (ip, authenticated, secure) VALUES (%s, %s, %s) RETURNING id;",
-					(address[0], False, False)
+					f"INSERT INTO transactions (ip, authenticated, secure) VALUES (%s, %s, %s) RETURNING id;", # nosec
+					(str(address[0]), False, False)
 				)
 				transaction_id = cursor.fetchone()[0]
 
@@ -74,8 +74,8 @@ class PostgreSQL(pydantic.BaseModel):
 
 			with self.session.cursor() as cursor:
 				cursor.execute(
-					f"UPDATE transactions SET secure=true WHERE id=%s;",
-					(transaction_id, )
+					f"UPDATE transactions SET secure=true WHERE id=%s;", # nosec
+					(int(transaction_id), )
 				)
 
 	def store_email(self, client :Client) -> bool:
@@ -86,14 +86,14 @@ class PostgreSQL(pydantic.BaseModel):
 			with self.session.cursor() as cursor:
 				for recipient in client.mail.recipients:
 					cursor.execute(
-						f"INSERT INTO emails (sender, recipient, data, secure) VALUES (%s, %s, %s, %s) RETURNING id;",
-						(client.mail.sender, recipient, client.mail.body, client.tls_protection is True)
+						f"INSERT INTO emails (sender, recipient, data, secure) VALUES (%s, %s, %s, %s) RETURNING id;", # nosec
+						(str(client.mail.sender), str(recipient), str(client.mail.body), client.tls_protection is True)
 					)
 					id_of_new_row = cursor.fetchone()[0]
 
 					cursor.execute(
-						f"UPDATE transactions SET email=%s WHERE id=%s;",
-						(client.mail.transaction_id, id_of_new_row)
+						f"UPDATE transactions SET email=%s WHERE id=%s;", # nosec
+						(int(client.mail.transaction_id), int(id_of_new_row))
 					)
 				
 				self.session.commit()
