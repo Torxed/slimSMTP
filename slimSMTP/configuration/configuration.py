@@ -204,5 +204,8 @@ class Configuration(pydantic.BaseModel):
 		'餐', '香格里拉', '香港'
 	]
 
+	def __init__(self, **data):
+		super().__init__(**data)
+
 	class Config:
 		arbitrary_types_allowed = True
