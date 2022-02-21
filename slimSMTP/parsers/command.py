@@ -3,7 +3,7 @@ import logging
 import ssl
 import base64
 from pam import pam as pamd
-from typing import List, Iterator
+from typing import List, Iterator, Union, Type
 from .parser import Parser
 from ..realms import Realm
 from ..sockets import Client
@@ -85,7 +85,7 @@ class RCPT_TO:
 		try:
 			obj.session.mail.add_recipient(clean_email(obj.data.lower()[8:].strip()))
 		except AuthenticationError:
-			parser_list = [
+			parser_list :List[Union[Type[QUIT], Type[AUTH_PLAIN]]] = [
 				QUIT
 			]
 
@@ -247,13 +247,13 @@ class PLAIN_CREDENTIALS:
 		credentials = obj.data.strip()
 		if len(credentials):
 			username, password = base64.b64decode(credentials).strip(b'\x00').split(b'\x00', 1)
-			username = username.decode('UTF-8')
-			password = password.decode('UTF-8')
+			str_username = username.decode('UTF-8')
+			str_password = password.decode('UTF-8')
 			# password = base64.b64encode(password)
 
 			pam = pamd()
-			if pam.authenticate(username, password):
-				log(f"Client(address={obj.session.address}) authenticated as {username}", level=logging.INFO, fg="green")
+			if pam.authenticate(str_username, str_password):
+				log(f"Client(address={obj.session.address}) authenticated as {str_username}", level=logging.INFO, fg="green")
 				obj.session.parent.clients[obj.session.fileno].authenticated = True
 
 				obj.session.set_parser(
@@ -268,7 +268,7 @@ class PLAIN_CREDENTIALS:
 				yield b'235 Authentication succeeded\r\n'
 				return
 
-		obj.session.spammer(f"Client(address={obj.session.address}) failed authentication as {username}")
+		obj.session.spammer(f"Client(address={obj.session.address}) failed authentication as {credentials}")
 		# obj.session.set_parser(
 		# 	Parser(
 		# 		expectations=[
@@ -297,13 +297,13 @@ class AUTH_PLAIN:
 		credentials = obj.data[10:].strip()
 		if len(credentials):
 			username, password = base64.b64decode(credentials).strip(b'\x00').split(b'\x00', 1)
-			username = username.decode('UTF-8')
-			password = password.decode('UTF-8')
+			str_username = username.decode('UTF-8')
+			str_password = password.decode('UTF-8')
 			# password = base64.b64encode(password)
 
 			pam = pamd()
-			if pam.authenticate(username, password):
-				log(f"Client(address={obj.session.address}) authenticated as {username}", level=logging.INFO, fg="green")
+			if pam.authenticate(str_username, str_password):
+				log(f"Client(address={obj.session.address}) authenticated as {str_username}", level=logging.INFO, fg="green")
 				obj.session.parent.clients[obj.session.fileno].authenticated = True
 
 				obj.session.set_parser(
@@ -326,7 +326,7 @@ class AUTH_PLAIN:
 				# )
 				# yield b'535 5.7.8 Error: authentication failed.\r\n'
 
-				obj.session.spammer(f"Client(address={obj.session.address}) failed authentication as {username}")
+				obj.session.spammer(f"Client(address={obj.session.address}) failed authentication as {str_username}")
 
 		else:
 			obj.session.set_parser(
