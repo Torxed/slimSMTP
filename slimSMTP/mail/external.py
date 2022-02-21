@@ -2,6 +2,8 @@ import ssl
 import dns.resolver
 import logging
 import smtplib
+import email
+import dkim
 # from email import encoders
 # from email.mime.multipart import MIMEMultipart
 # from email.mime.text import MIMEText
@@ -10,31 +12,37 @@ from typing import Dict, Any
 from .spam import validate_email_address
 from ..logger import log
 
+def sign_email(mail_obj, session, selector='default', domain=None):
+	if type(selector) != bytes: selector = bytes(selector, 'UTF-8')
+	if type(domain) != bytes: domain = bytes(domain, 'UTF-8')
+
+	if not session.configuration.DKIM_KEY.exists():
+		log(f"Missing DKIM key: {session.configuration.DKIM_KEY}", level=logging.ERROR, fg="red")
+		return False
+
+	with session.configuration.DKIM_KEY.open('rb') as fh:
+		dkim_private_key_data = fh.read()
+
+	sig = dkim.sign(message=bytes(mail_obj.as_string(), 'UTF-8'),
+					selector=selector,
+					domain=domain,
+					privkey=dkim_private_key_data,
+					include_headers=["To", "From", "Subject"])
+
+	return sig.lstrip(b"DKIM-Signature: ").decode('UTF-8')
+
 def deliver_external_email(session, sender, reciever, data, secure = False):
+	validate_email_address(sender, session.configuration)
 	validate_email_address(reciever, session.configuration)
+	domain_of_sender = sender[sender.find('@') + 1:].strip()
 	domain_of_reciever = reciever[reciever.find('@') + 1:].strip()
 
-	# email = MIMEMultipart('alternative')
-	# email['Subject'] = configuration['SUBJECT']
-	# email['From'] = "SSH Guard <{SSH_MAIL_USER_FROM}@{DOMAIN}>".format(**configuration)
-	# email['To'] = "{SSH_MAIL_TO_REALNAME} <{SSH_MAIL_USER_TO}@{SSH_MAIL_USER_TODOMAIN}>".format(**configuration)
-	# email['Message-ID'] = configuration['Message-ID']
-	# email.preamble = configuration['SUBJECT']
+	if session.configuration.DKIM_KEY:
+		mail_obj = email.message_from_string(data)
+		if not (signature := sign_email(mail_obj, session=session, domain=domain_of_sender)):
+			return False
 
-	# text = load_text_template()
-	# html = load_html_template()
-
-
-	# email_body_text = MIMEText(text, 'plain')
-	# email_body_html = MIMEBase('text', 'html')
-	# email_body_html.set_payload(html)
-	# encoders.encode_quopri(email_body_html)
-	# email_body_html.set_charset('UTF-8')
-
-	# email.attach(email_body_text)
-	# email.attach(email_body_html)
-
-	# email["DKIM-Signature"] = sign_email(email)
+		mail_obj["DKIM-Signature"] = signature
 
 	context = ssl.create_default_context()
 	for mx_record in dns.resolver.query(domain_of_reciever, 'MX'):
@@ -47,7 +55,7 @@ def deliver_external_email(session, sender, reciever, data, secure = False):
 				server.quit()
 				continue
 			
-			server.sendmail(sender, reciever, data)
+			server.sendmail(sender, reciever, mail_obj.as_string())
 			server.quit()
 
 			return True

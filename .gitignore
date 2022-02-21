@@ -3,6 +3,9 @@
 /test*.py
 /*.txt
 /example.py
-/*.pem
-/*.crt
-/*.key
+**/*dkim
+**/*.dkim
+**/*.pem
+**/*.pub
+**/*.key
+**/*.crt

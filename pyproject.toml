@@ -14,7 +14,8 @@ dependencies = [
 	"pydantic",
 	"psycopg2-binary",
 	"systemd",
-	"python-pam"
+	"python-pam",
+	"dkimpy"
 ]
 
 [project.urls]

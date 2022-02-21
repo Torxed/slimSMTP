@@ -14,6 +14,7 @@ class Configuration(pydantic.BaseModel):
 	tls_cert :Optional[pathlib.Path] = None
 	tls_protocol :Optional[int] = None # ssl.PROTOCOL_TLSv1_1 == int
 	tls_certificate_authorities :List[pathlib.Path] = []
+	DKIM_KEY :Optional[pathlib.Path] = None
 	valid_top_domains :List[str] = [
 		'local', 'localdomain', 'domain', 'home', 'host', 'corp', # Local TLDs
 		'aaa', 'aarp', 'abarth', 'abb', 'abbott', 'abbvie', 'abc', 'able',

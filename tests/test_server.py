@@ -6,7 +6,8 @@ def test_server():
 		address='',
 		realms=[
 			slimSMTP.Realm(name='test.domain')
-		]
+		],
+		storage=slimSMTP.Memory()
 	)
 
 	server = slimSMTP.Server(configuration)
