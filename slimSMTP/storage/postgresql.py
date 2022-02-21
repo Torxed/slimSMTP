@@ -32,6 +32,9 @@ class PostgreSQL(pydantic.BaseModel):
 
 		self.setup_default_tables()
 
+		from ..logger import log
+		log(f"PostgreSQL storage ready for usage.", level=logging.DEBUG, fg="green")
+
 	class Config:
 		arbitrary_types_allowed = True
 
@@ -42,6 +45,9 @@ class PostgreSQL(pydantic.BaseModel):
 			self.session.commit()
 
 	def begin_transaction(self, address):
+		from ..logger import log
+		log(f"Gave {address} a transactional ID in the email transaction table.", level=logging.DEBUG, fg="cyan")
+
 		with self.session.cursor() as cursor:
 			cursor.execute(
 				f"INSERT INTO transactions (ip, authenticated, secure) VALUES (%s, %s, %s) RETURNING id;",
@@ -53,15 +59,26 @@ class PostgreSQL(pydantic.BaseModel):
 
 		return transaction_id
 
+	def set_transaction_as_secure(self, transaction_id):
+		from ..logger import log
+
+		log(f"Marking transaction {transaction_id} as secure (TLS Enabled)", level=logging.DEBUG, fg="green")
+
+		with self.session.cursor() as cursor:
+			cursor.execute(
+				f"UPDATE transactions SET secure=true WHERE id=%s;",
+				(transaction_id, )
+			)
+
 	def store_email(self, client):
 		from ..logger import log
-		
-		log(f"Storing email from Client({client})", level=logging.DEBUG, fg="cyan")
+
+		log(f"Storing email from Client({client})", level=logging.INFO, fg="green")
 		with self.session.cursor() as cursor:
 			for recipient in client.mail.recipients:
 				cursor.execute(
 					f"INSERT INTO emails (sender, recipient, data, secure) VALUES (%s, %s, %s, %s) RETURNING id;",
-					(client.mail.sender, recipient, client.mail.body, False)
+					(client.mail.sender, recipient, client.mail.body, client.tls_protection is True)
 				)
 				id_of_new_row = cursor.fetchone()[0]
 

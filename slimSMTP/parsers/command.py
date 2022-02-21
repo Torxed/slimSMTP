@@ -234,6 +234,8 @@ class STARTTLS:
 				suppress_ragged_eofs=False
 			)
 			obj.session.parent.clients[obj.session.fileno].buffert = b''
+			obj.session.parent.clients[obj.session.fileno].set_protection(True)
+			obj.session.parent.configuration.storage.set_transaction_as_secure(obj.session.mail.transaction_id)
 			# obj.session.parent.clients[obj.session.fileno].socket.send(bytes(f"220 {obj.session.parent.configuration.realms[0].fqdn} ESMTP\r\n", "UTF-8"))
 		except ssl.SSLError:
 			obj.session.set_parser(

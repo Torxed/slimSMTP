@@ -23,6 +23,7 @@ class Client(pydantic.BaseModel):
 	mail :'Mail' = None
 	last_recieve :float = None
 	authenticated :bool = False
+	tls_protection :bool = False
 
 	def __init__(self, **data):
 		super().__init__(**data)
@@ -54,6 +55,9 @@ class Client(pydantic.BaseModel):
 
 	def set_last_recieve(self, value):
 		self.parent.clients[self.fileno].last_recieve = value
+
+	def set_protection(self, value):
+		self.parent.clients[self.fileno].tls_protection = value
 
 	def get_buffert(self):
 		return self.parent.clients[self.fileno].buffert
