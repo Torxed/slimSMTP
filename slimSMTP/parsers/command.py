@@ -109,8 +109,8 @@ class MAIL_SESSION:
 		return True
 
 	def respond(obj :CMD_DATA):
-		log(f"Processing: DATA (transit)", level=logging.DEBUG, fg="cyan")
 		if obj.data == '.':
+			log(f"Processing: DATA (completion)", level=logging.DEBUG, fg="cyan")
 			if obj.session.parent.configuration.storage.store_email(obj.session):
 				yield b'250 Ok: Queued!\r\n'
 
@@ -131,6 +131,7 @@ class MAIL_SESSION:
 				)
 				return None
 		else:
+			log(f"Processing: DATA (transit)", level=logging.DEBUG, fg="cyan")
 			obj.session.mail.add_body(obj.data)
 
 	def handle(obj :CMD_DATA):

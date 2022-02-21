@@ -1,7 +1,9 @@
 import pydantic
 import psycopg2
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+import logging
 from typing import Optional
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from ..logger import log
 
 class PostgreSQL(pydantic.BaseModel):
 	database :str
@@ -53,6 +55,7 @@ class PostgreSQL(pydantic.BaseModel):
 		return transaction_id
 
 	def store_email(self, client):
+		log(f"Storing email from Client({client})", level=logging.DEBUG, fg="cyan")
 		with self.session.cursor() as cursor:
 			for recipient in client.mail.recipients:
 				cursor.execute(
