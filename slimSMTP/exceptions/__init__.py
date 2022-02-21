@@ -9,3 +9,6 @@ class InvalidAddress(BaseException):
 
 class SPFError(BaseException):
 	pass
+
+class EmailValidationError(BaseException):
+	pass
