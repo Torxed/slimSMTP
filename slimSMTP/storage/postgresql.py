@@ -48,10 +48,14 @@ class PostgreSQL(pydantic.BaseModel):
 				cursor.execute(f"SELECT * FROM emails WHERE delivered is null ORDER BY id ASC;")
 				for mail in cursor:
 					domain_of_recipient = mail['recipient'][mail['recipient'].find('@') + 1:].strip()
+					is_in_configured_realms = False
 					for realm in configuration.realms:
 						if realm.name == domain_of_recipient:
-							continue
-					yield dict(mail)
+							is_in_configured_realms = True
+							break
+
+					if not is_in_configured_realms:
+						yield dict(mail)
 
 	def setup_default_tables(self) -> None:
 		if self.session:
