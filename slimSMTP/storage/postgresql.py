@@ -47,7 +47,7 @@ class PostgreSQL(pydantic.BaseModel):
 			with self.session.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
 				cursor.execute(f"SELECT * FROM emails WHERE delivered is null ORDER BY id ASC;")
 				for mail in cursor:
-					domain_of_recipient = mail['reciever'][mail['reciever'].find('@') + 1:].strip()
+					domain_of_recipient = mail['recipient'][mail['recipient'].find('@') + 1:].strip()
 					for realm in configuration.realms:
 						if name == domain_of_recipient:
 							continue
