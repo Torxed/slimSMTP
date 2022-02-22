@@ -42,11 +42,15 @@ class PostgreSQL(pydantic.BaseModel):
 	class Config:
 		arbitrary_types_allowed = True
 
-	def get_undelievered_emails(self) -> Iterator[Dict[str, Any]]:
+	def get_undelievered_emails(self, configuration) -> Iterator[Dict[str, Any]]:
 		if self.session:
 			with self.session.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
 				cursor.execute(f"SELECT * FROM emails WHERE delivered is null ORDER BY id ASC;")
 				for mail in cursor:
+					domain_of_recipient = mail['reciever'][mail['reciever'].find('@') + 1:].strip()
+					for realm in configuration.realms:
+						if name == domain_of_recipient:
+							continue
 					yield dict(mail)
 
 	def setup_default_tables(self) -> None:
