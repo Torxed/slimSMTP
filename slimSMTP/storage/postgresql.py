@@ -49,7 +49,7 @@ class PostgreSQL(pydantic.BaseModel):
 				for mail in cursor:
 					domain_of_recipient = mail['recipient'][mail['recipient'].find('@') + 1:].strip()
 					for realm in configuration.realms:
-						if name == domain_of_recipient:
+						if realm.name == domain_of_recipient:
 							continue
 					yield dict(mail)
 
