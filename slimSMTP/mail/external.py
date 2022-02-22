@@ -12,6 +12,7 @@ from typing import Dict, Any
 from .spam import validate_email_address
 from ..logger import log
 
+# https://russell.ballestrini.net/quickstart-to-dkim-sign-email-with-python/
 def sign_email(mail_obj, session, selector='default', domain=None):
 	if type(selector) != bytes: selector = bytes(selector, 'UTF-8')
 	if type(domain) != bytes: domain = bytes(domain, 'UTF-8')
