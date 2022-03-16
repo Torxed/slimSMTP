@@ -1,6 +1,6 @@
 **__pycache__**
 **/**.pyc
-/test*.py
+/*.py
 /*.txt
 /example.py
 **/*dkim
