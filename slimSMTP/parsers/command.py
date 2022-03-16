@@ -336,6 +336,7 @@ class AUTH_PLAIN:
 				
 				yield b'235 Authentication succeeded\r\n'
 			else:
+				log(f"Client(address={obj.session.address}) failed authentication as {str_username}", level=logging.WARNING, fg="yellow")
 				# obj.session.set_parser(
 				# 	Parser(
 				# 		expectations=[
@@ -379,12 +380,17 @@ class STARTTLS:
 		ssl_context = ssl.SSLContext(protocol=protocol if protocol else ssl.PROTOCOL_TLSv1_2)
 		ssl_context.load_default_certs()
 		ssl_context.verify_mode = ssl.CERT_NONE
-		ssl_context.load_cert_chain(
-			certfile=str(obj.session.parent.configuration.tls_cert),
-			keyfile=str(obj.session.parent.configuration.tls_key)
-		)
-		for ca in obj.session.parent.configuration.tls_certificate_authorities:
-			ssl_context.load_verify_locations(str(ca))
+		try:
+			ssl_context.load_cert_chain(
+				certfile=str(obj.session.parent.configuration.tls_cert),
+				keyfile=str(obj.session.parent.configuration.tls_key)
+			)
+
+			for ca in obj.session.parent.configuration.tls_certificate_authorities:
+				ssl_context.load_verify_locations(str(ca))
+		except FileNotFoundError:
+			log(f"Missing server or CA certificates. Make sure {obj.session.parent.configuration.tls_cert}, {obj.session.parent.configuration.tls_key} & {obj.session.parent.configuration.tls_certificate_authorities} exists.", level=logging.ERROR, fg="red")
+			exit(1)
 
 		try:
 			obj.session.parent.clients[obj.session.fileno].socket = ssl_context.wrap_socket(

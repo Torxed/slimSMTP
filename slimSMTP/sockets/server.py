@@ -19,7 +19,11 @@ class Server:
 		self.so_timeout = 0.025
 
 		self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		self.socket.bind((self.configuration.address, self.configuration.port))
+		try:
+			self.socket.bind((self.configuration.address, self.configuration.port))
+		except OSError:
+			log(f"Could not bind socket to {self.configuration.address}:{self.configuration.port}. Make sure the address exists locally and the port isn't taken.")
+			exit(1)
 		self.socket.listen(4)
 
 	def close(self) -> None:
