@@ -48,7 +48,7 @@ def deliver_external_email(session, sender, reciever, data, secure = False):
 	context = ssl.create_default_context()
 	for mx_record in dns.resolver.query(domain_of_reciever, 'MX'):
 		mail_server = mx_record.to_text().split()[1][:-1]
-		log(f"Attempting to deliver external email using {mail_server}", level=logging.DEBUG, fg="cyan")
+		log(f"Attempting to deliver external email from {sender} to {reciever} using {mail_server}", level=logging.DEBUG, fg="cyan")
 		try:
 			server = smtplib.SMTP(mail_server, port=25, timeout=10) # 587 = TLS, 465 = SSL
 			if server.starttls(context=context)[0] != 220:
