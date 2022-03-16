@@ -318,7 +318,7 @@ class AUTH_PLAIN:
 			str_password = password.decode('UTF-8')
 			# password = base64.b64encode(password)
 
-			if pam.authenticate(str_username, str_password):
+			if pam.authenticate(str_username, str_password) == 0:
 				log(f"Client(address={obj.session.address}) authenticated as {str_username}", level=logging.INFO, fg="green")
 				obj.session.parent.clients[obj.session.fileno].authenticated = True
 				obj.session.parent.configuration.storage.set_authenticated_as(obj.session.mail.transaction_id, str_username)
