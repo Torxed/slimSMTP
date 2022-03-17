@@ -2,7 +2,7 @@ import pydantic
 import logging
 import ssl
 import base64
-from pam import pam as pamd
+import pam
 from typing import List, Iterator, Union, Type
 from .parser import Parser
 from ..realms import Realm
@@ -268,8 +268,7 @@ class PLAIN_CREDENTIALS:
 			str_password = password.decode('UTF-8')
 			# password = base64.b64encode(password)
 
-			pam = pamd()
-			if pam.authenticate(str_username, str_password):
+			if pam.authenticate(str_username, str_password) == 0:
 				log(f"Client(address={obj.session.address}) authenticated as {str_username}", level=logging.INFO, fg="green")
 				obj.session.parent.clients[obj.session.fileno].authenticated = True
 				obj.session.parent.configuration.storage.set_authenticated_as(obj.session.mail.transaction_id, str_username)
@@ -319,8 +318,7 @@ class AUTH_PLAIN:
 			str_password = password.decode('UTF-8')
 			# password = base64.b64encode(password)
 
-			pam = pamd()
-			if pam.authenticate(str_username, str_password):
+			if pam.authenticate(str_username, str_password) == 0:
 				log(f"Client(address={obj.session.address}) authenticated as {str_username}", level=logging.INFO, fg="green")
 				obj.session.parent.clients[obj.session.fileno].authenticated = True
 				obj.session.parent.configuration.storage.set_authenticated_as(obj.session.mail.transaction_id, str_username)
@@ -336,6 +334,7 @@ class AUTH_PLAIN:
 				
 				yield b'235 Authentication succeeded\r\n'
 			else:
+				log(f"Client(address={obj.session.address}) failed authentication as {str_username}", level=logging.WARNING, fg="yellow")
 				# obj.session.set_parser(
 				# 	Parser(
 				# 		expectations=[
@@ -379,12 +378,17 @@ class STARTTLS:
 		ssl_context = ssl.SSLContext(protocol=protocol if protocol else ssl.PROTOCOL_TLSv1_2)
 		ssl_context.load_default_certs()
 		ssl_context.verify_mode = ssl.CERT_NONE
-		ssl_context.load_cert_chain(
-			certfile=str(obj.session.parent.configuration.tls_cert),
-			keyfile=str(obj.session.parent.configuration.tls_key)
-		)
-		for ca in obj.session.parent.configuration.tls_certificate_authorities:
-			ssl_context.load_verify_locations(str(ca))
+		try:
+			ssl_context.load_cert_chain(
+				certfile=str(obj.session.parent.configuration.tls_cert),
+				keyfile=str(obj.session.parent.configuration.tls_key)
+			)
+
+			for ca in obj.session.parent.configuration.tls_certificate_authorities:
+				ssl_context.load_verify_locations(str(ca))
+		except FileNotFoundError:
+			log(f"Missing server or CA certificates. Make sure {obj.session.parent.configuration.tls_cert}, {obj.session.parent.configuration.tls_key} & {obj.session.parent.configuration.tls_certificate_authorities} exists.", level=logging.ERROR, fg="red")
+			exit(1)
 
 		try:
 			obj.session.parent.clients[obj.session.fileno].socket = ssl_context.wrap_socket(
