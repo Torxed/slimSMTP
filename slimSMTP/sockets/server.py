@@ -16,7 +16,7 @@ class Server:
 		self.epoll = epoll()
 		self.epoll.register(self.socket.fileno(), EPOLLIN | EPOLLHUP)
 		self.clients :Dict[int, Client] = {}
-		self.so_timeout = 0.025
+		self.so_timeout = 0.001
 
 		self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		try:

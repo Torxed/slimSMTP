@@ -109,7 +109,12 @@ class Client(pydantic.BaseModel):
 			first_linebreak = self.get_buffert().find(b'\r\n')
 			data = self.get_slice(0, first_linebreak)
 
-			self.set_buffert(self.buffert[first_linebreak + 2:])
+			# Parsing a row of data, counts as something being recieved.
+			# Because we can never process a new line without new data or previously
+			# unparsed correct data being added to the buffer.
+			self.set_last_recieve(time.time())
+
+			self.set_buffert(self.get_buffert()[first_linebreak + 2:])
 
 			try:
 				return CMD_DATA(

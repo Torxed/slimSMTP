@@ -50,7 +50,7 @@ def deliver_external_email(session, sender, reciever, data, secure = False):
 		mail_server = mx_record.to_text().split()[1][:-1]
 		log(f"Attempting to deliver external email from {sender} to {reciever} using {mail_server}", level=logging.DEBUG, fg="cyan")
 		try:
-			server = smtplib.SMTP(mail_server, port=25, timeout=10) # 587 = TLS, 465 = SSL
+			server = smtplib.SMTP(mail_server, port=25, timeout=10, local_hostname=session.configuration.realms[0].fqdn)fqdn # 587 = TLS, 465 = SSL
 			if server.starttls(context=context)[0] != 220:
 				log('Could not start TLS.', level=logging.ERROR, fg="red")
 				server.quit()
