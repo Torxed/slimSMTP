@@ -17,7 +17,8 @@ from .mail import (
 	ExternalEmail as ExternalEmail,
 	spammer as spammer,
 	is_spammer as is_spammer,
-	deliver_external_email as deliver_external_email
+	deliver_external_email as deliver_external_email,
+	ip_in_spf as ip_in_spf
 )
 from .logger import log as log
 from .storage import (

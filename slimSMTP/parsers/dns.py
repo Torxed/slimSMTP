@@ -40,3 +40,16 @@ class SPF:
 					value += '/32'
 
 				self.hosts.append(ipaddress.ip_network(value, False))
+			elif key == 'a':
+				# Authorize (https://support.google.com/a/answer/10683907?hl=en)
+				try:
+					ip = value
+					if not '/' in ip:
+						ip += '/32'
+					self.hosts.append(ipaddress.ip_network(ip))
+				except ValueError:
+					try:
+						for record in dns.resolver.resolve(value, 'A', search=True):
+							self.hosts.append(ipaddress.ip_network(f"{record.to_text()}/32"))
+					except dns.resolver.NoAnswer:
+						pass

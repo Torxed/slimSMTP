@@ -74,7 +74,7 @@ def ip_in_spf(ip :str, domain :str) -> Union[bool, None]:
 					found_spf = True
 					if ipaddress.ip_address(ip) in subnet:
 						return True
-			except SPFError:
+			except SPFError as err:
 				pass
 	except dns.resolver.NXDOMAIN:
 		return None

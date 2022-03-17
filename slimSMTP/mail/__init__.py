@@ -7,7 +7,8 @@ from .spam import (
 	validate_email_address as validate_email_address,
 	get_mail_servers as get_mail_servers,
 	spammer as spammer,
-	is_spammer as is_spammer
+	is_spammer as is_spammer,
+	ip_in_spf as ip_in_spf
 )
 from .helpers import clean_email as clean_email
 from .external import deliver_external_email as deliver_external_email
